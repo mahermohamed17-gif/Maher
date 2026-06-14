@@ -1133,8 +1133,8 @@
         <div style="background:#1e293b;border-radius:20px;max-width:860px;width:100%;max-height:90vh;overflow-y:auto;position:relative;">
             <button onclick="closeLB()" style="position:absolute;top:14px;left:14px;background:rgba(255,255,255,0.1);border:none;border-radius:50%;width:40px;height:40px;color:white;font-size:20px;cursor:pointer;z-index:10;">✕</button>
             <div id="lbMedia" style="width:100%;aspect-ratio:16/9;background:#020617;border-radius:20px 20px 0 0;overflow:hidden;position:relative;display:flex;align-items:center;justify-content:center;">
-                <button id="lbPrev" onclick="lbNav(-1)" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.6);border:none;color:white;font-size:28px;width:44px;height:44px;border-radius:50%;cursor:pointer;">›</button>
-                <button id="lbNext" onclick="lbNav(1)" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.6);border:none;color:white;font-size:28px;width:44px;height:44px;border-radius:50%;cursor:pointer;">‹</button>
+                <button id="lbPrev" onclick="lbNav(-1)" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.6);border:none;color:white;font-size:28px;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:5;">›</button>
+                <button id="lbNext" onclick="lbNav(1)" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.6);border:none;color:white;font-size:28px;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:5;">‹</button>
             </div>
             <div id="lbDots" style="display:flex;gap:8px;justify-content:center;padding:14px;"></div>
             <div style="padding:20px 28px 28px;">
@@ -1183,183 +1183,474 @@
     </footer>
 
     <script>
-        // GLOBAL FUNCTIONS - accessible from onclick
-        function toggleTheme() {
-            document.body.classList.toggle('light-mode');
-            const btn = document.getElementById('themeBtn');
-            const isLight = document.body.classList.contains('light-mode');
-            btn.textContent = isLight ? '🌙' : '☀️';
-            localStorage.setItem('maher_theme', isLight ? 'light' : 'dark');
+
+    // ============================================================
+    // GLOBAL VARIABLES & FUNCTIONS (must be accessible from onclick)
+    // ============================================================
+    let allWorks = [];
+    let currentFilter = 'all';
+    let lbWork = null, lbIdx = 0;
+    let currentLang = 'ar';
+
+    const typeLabels = {
+        design: 'تصميم جرافيك',
+        video: 'مونتاج فيديو',
+        photo: 'تصوير',
+        motion: 'موشن جرافيك',
+        brand: 'هوية بصرية'
+    };
+
+    const typeIcons = {
+        design: 'fas fa-palette',
+        video: 'fas fa-video',
+        photo: 'fas fa-camera',
+        motion: 'fas fa-star',
+        brand: 'fas fa-paint-brush'
+    };
+
+    // ===== Media helpers =====
+    function mediaSrc(item) {
+        return item.data || item.url || item.src || '';
+    }
+
+    function mediaName(item) {
+        return item.file_name || item.name || 'الملف';
+    }
+
+    function mediaKind(item) {
+        const src = mediaSrc(item).toLowerCase();
+        const name = mediaName(item).toLowerCase();
+        const ft = (item.file_type || item.type || '').toLowerCase();
+        const path = src.split('?')[0];
+
+        if (ft.startsWith('video') || /\.(mp4|webm|mov|ogg|m4v|avi|mkv)$/.test(path) || /\.(mp4|webm|mov|ogg|m4v|avi|mkv)$/.test(name)) return 'video';
+        if (ft.startsWith('image') || /\.(jpe?g|png|gif|webp|svg|avif|bmp)$/.test(path) || /\.(jpe?g|png|gif|webp|svg|avif|bmp)$/.test(name)) return 'image';
+        if (ft === 'application/pdf' || path.endsWith('.pdf') || name.endsWith('.pdf')) return 'pdf';
+        return 'file';
+    }
+
+    function downloadHref(src, name) {
+        if (!src) return '#';
+        const sep = src.includes('?') ? '&' : '?';
+        return `${src}${sep}download=${encodeURIComponent(name || 'file')}`;
+    }
+
+    // ===== Theme & Language =====
+    function toggleTheme() {
+        document.body.classList.toggle('light-mode');
+        const btn = document.getElementById('themeBtn');
+        const isLight = document.body.classList.contains('light-mode');
+        btn.textContent = isLight ? '🌙' : '☀️';
+        localStorage.setItem('maher_theme', isLight ? 'light' : 'dark');
+    }
+
+    function toggleMobileMenu() {
+        const navLinks = document.querySelector('.nav-links');
+        const btn = document.getElementById('menuBtn');
+        navLinks.classList.toggle('open');
+        btn.innerHTML = navLinks.classList.contains('open')
+            ? '<i class="fas fa-times"></i>'
+            : '<i class="fas fa-bars"></i>';
+    }
+
+    function toggleLang() {
+        currentLang = currentLang === 'ar' ? 'en' : 'ar';
+        applyLang(currentLang);
+        localStorage.setItem('maher_lang', currentLang);
+    }
+
+    // ===== Portfolio Filters =====
+    function filterBy(type) {
+        currentFilter = type;
+        buildFilters();
+        renderWorks();
+    }
+
+    function buildFilters() {
+        const bar = document.getElementById('portfolioFilters');
+        if (allWorks.length === 0) { bar.style.display = 'none'; return; }
+        bar.style.display = 'flex';
+        const types = ['all', ...new Set(allWorks.map(w => w.type))];
+        bar.innerHTML = types.map(t => `
+            <button onclick="filterBy('${t}')" style="
+                padding:8px 20px;border-radius:50px;border:2px solid ${t === currentFilter ? 'var(--primary)' : 'rgba(255,255,255,0.15)'};
+                background:${t === currentFilter ? 'var(--primary)' : 'transparent'};
+                color:${t === currentFilter ? 'white' : 'var(--light)'};
+                font-family:'Cairo',sans-serif;font-weight:700;font-size:14px;cursor:pointer;transition:all 0.3s;
+            ">${t === 'all' ? 'الكل' : (typeLabels[t] || t)}</button>
+        `).join('');
+    }
+
+    function renderWorks() {
+        const grid = document.getElementById('portfolioGrid');
+        const filtered = currentFilter === 'all' ? allWorks : allWorks.filter(w => w.type === currentFilter);
+
+        if (filtered.length === 0) {
+            document.getElementById('portfolioSubtitle').textContent = 'نماذج من الشغل اللي عملته';
+            grid.innerHTML = `
+                <div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:#64748b;">
+                    <i class="fas fa-image" style="font-size:48px;margin-bottom:16px;display:block;"></i>
+                    <p style="font-size:16px;">${allWorks.length === 0 ? 'الأعمال هتظهر هنا بعد ما ترفعها من لوحة التحكم' : 'مفيش أعمال في هذه الفئة'}</p>
+                </div>`;
+            return;
         }
 
-        function toggleMobileMenu() {
-            const navLinks = document.querySelector('.nav-links');
-            const btn = document.getElementById('menuBtn');
-            navLinks.classList.toggle('open');
-            btn.innerHTML = navLinks.classList.contains('open')
-                ? '<i class="fas fa-times"></i>'
-                : '<i class="fas fa-bars"></i>';
-        }
+        document.getElementById('portfolioSubtitle').textContent = `${filtered.length} عمل متاح`;
 
-        let currentLang = 'ar';
-        function toggleLang() {
-            currentLang = currentLang === 'ar' ? 'en' : 'ar';
-            applyLang(currentLang);
-            localStorage.setItem('maher_lang', currentLang);
-        }
+        grid.innerHTML = filtered.map((w, i) => {
+            const realIdx = allWorks.indexOf(w);
+            const first = w.media && w.media[0];
+            const kind = first ? mediaKind(first) : null;
+            const src = first ? mediaSrc(first) : '';
+            const fname = first ? mediaName(first) : '';
+            const hasLink = !!w.video_link;
 
-const T = {
-            ar: {
-                dir: 'rtl', lang: 'ar', langBtn: '🌐 EN',
-                nav: ['الرئيسية','عني','الخبرات','المهارات','أعمالي','تواصل'],
-                heroBadge: 'مصمم جرافيك & إعلامي',
-                heroH1: 'أنا <span>ماهر محمد علي</span><br>أحول الأفكار إلى واقع بصري',
-                heroSub: 'طالب زراعة | مصمم جرافيك | مونتاج | إعلامي',
-                heroBio: 'شاب طموح عمره 19 سنة، بدرس في كلية الزراعة جامعة طنطا، وفي نفس الوقت بمارس شغفي في التصميم والإعلام. عندي خبرة في الجرافيك ديزاين والمونتاج والتصوير، وشغال في المجال الطلابي والإعلامي على أعلى مستوى.',
-                heroBtn1: 'شوف أعمالي', heroBtn2: 'تواصل معايا',
-                aboutTitle: 'نبذة عني', aboutSub: 'من أنا وإيه اللي بميزني',
-                cards: [
-                    { title: 'تصميم إبداعي', desc: 'بصمم بوسترات، سوشيال ميديا، هويات بصرية، وكل حاجة تحتاجها عشان تظهر بشكل احترافي. شغلي بيتميز بالإبداع والدقة.' },
-                    { title: 'مونتاج فيديو', desc: 'بعمل مونتاج احترافي للفيديوهات، سواء كانت فيديوهات تسويقية، تغطيات، أو محتوى سوشيال ميديا بجودة عالية.' },
-                    { title: 'إعلام ومحتوى', desc: 'خبرة في إدارة المحتوى الإعلامي للمنظمات والاتحادات الطلابية، وإدارة الصفحات والحسابات على السوشيال ميديا.' }
-                ],
-                expTitle: 'خبراتي ومناصبي', expSub: 'المسيرة الإعلامية والطلابية',
-                exp: [
-                    { title: 'رئيس الميديا (Head of Media)', org: 'اتحاد طلاب تحيا مصر - وزارة الشباب والرياضة - محافظة الغربية', date: 'الحالي', desc: 'مسؤول عن إدارة الفريق الإعلامي بالكامل، وضع الاستراتيجيات الإعلامية، إشراف على المحتوى البصري والمرئي، وتنسيق الحملات الإعلامية للاتحاد على مستوى الجمهورية.' },
-                    { title: 'نائب رئيس الميديا (Vice Media)', org: 'أسرة طلاب من أجل مصر - كلية الزراعة جامعة طنطا', date: 'الحالي', desc: 'إدارة الفريق الإعلامي للأسرة، تصميم الهوية البصرية، إنتاج المحتوى للفعاليات والأنشطة، وتغطية الفعاليات الطلابية بشكل احترافي.' },
-                    { title: 'نائب رئيس الميديا (Vice Media)', org: 'اتحاد طلاب كلية الزراعة - جامعة طنطا', date: 'الحالي', desc: 'مسؤول عن الجانب الإعلامي لاتحاد الكلية، تصميم البوسترات والإعلانات للأنشطة، إدارة صفحات الاتحاد، وتغطية الفعاليات الرسمية للكلية.' },
-                    { title: 'طالب زراعة', org: 'كلية الزراعة - جامعة طنطا', date: '2024 - الآن', desc: 'طالب في الفرقة الثانية بكلية الزراعة جامعة طنطا، بجمع بين الدراسة العلمية والشغف الإبداعي في المجال الإعلامي.' }
-                ],
-                skillsTitle: 'مهاراتي', skillsSub: 'التقنيات والأدوات اللي بشتغل بيها',
-                skillsSubs: ['تصميم جرافيك احترافي','تصميم فيكتور وهوية بصرية','مونتاج فيديو احترافي','موشن جرافيك وefects بصرية','تصميم UI/UX وسريع','تصوير احترافي للفعاليات','إدارة المحتوى والحملات','كتابة محتوى وكابشنز'],
-                portTitle: 'أعمالي', portSub: 'نماذج من الشغل اللي عملته',
-                contactTitle: 'خلينا نشتغل مع بعض!',
-                contactSub: 'عندك مشروع؟ عاوز تصميم؟ محتاج مونتاج؟ أو عاوز تتعاون في حاجة إعلامية؟ أنا جاهز! تواصل معايا على أي منصة.',
-                emailBtn: 'ابعت إيميل', phoneBtn: 'اتصل بيا',
-                footerRights: 'جميع الحقوق محفوظة',
-                openLink: '🔗 فتح الرابط', downloadFile: '⬇️ تحميل الملف',
-                logoName: 'ماهر محمد علي', footerCopy: '© 2026 ماهر محمد علي. جميع الحقوق محفوظة.'
-            },
-            en: {
-                dir: 'ltr', lang: 'en', langBtn: '🌐 AR',
-                nav: ['Home','About','Experience','Skills','Portfolio','Contact'],
-                heroBadge: 'Graphic Designer & Media Professional',
-                heroH1: "I'm <span>Maher Mohamed Ali</span><br>Turning Ideas Into Visual Reality",
-                heroSub: 'Agriculture Student | Graphic Designer | Video Editor | Media',
-                heroBio: 'An ambitious 19-year-old studying at the Faculty of Agriculture, Tanta University, while pursuing my passion in design and media. I have experience in graphic design, video editing, and photography, working in student and media fields at the highest level.',
-                heroBtn1: 'View My Work', heroBtn2: 'Contact Me',
-                aboutTitle: 'About Me', aboutSub: 'Who I am and what makes me stand out',
-                cards: [
-                    { title: 'Creative Design', desc: 'I design posters, social media content, visual identities, and everything you need to look professional. My work is characterized by creativity and precision.' },
-                    { title: 'Video Editing', desc: 'I produce professional video edits, whether marketing videos, event coverage, or high-quality social media content.' },
-                    { title: 'Media & Content', desc: 'Experience in managing media content for organizations and student unions, and managing social media pages and accounts.' }
-                ],
-                expTitle: 'Experience & Positions', expSub: 'My media and student journey',
-                exp: [
-                    { title: 'Head of Media', org: 'Tahya Misr Student Union - Ministry of Youth & Sports - Gharbia Governorate', date: 'Current', desc: 'Responsible for managing the entire media team, developing media strategies, overseeing visual content, and coordinating media campaigns at the national level.' },
-                    { title: 'Vice Head of Media', org: 'Students for Egypt Family - Faculty of Agriculture, Tanta University', date: 'Current', desc: 'Managing the family media team, designing visual identity, producing content for events and activities, and covering student events professionally.' },
-                    { title: 'Vice Head of Media', org: 'Faculty of Agriculture Student Union - Tanta University', date: 'Current', desc: 'Responsible for the media side of the faculty union, designing posters and announcements, managing union pages, and covering official faculty events.' },
-                    { title: 'Agriculture Student', org: 'Faculty of Agriculture - Tanta University', date: '2024 - Present', desc: 'Second-year student at the Faculty of Agriculture, Tanta University, combining scientific study with creative passion in the media field.' }
-                ],
-                skillsTitle: 'My Skills', skillsSub: 'Technologies and tools I work with',
-                skillsSubs: ['Professional Graphic Design','Vector Design & Visual Identity','Professional Video Editing','Motion Graphics & Visual Effects','UI/UX & Quick Design','Professional Event Photography','Content & Campaign Management','Creative Writing & Captions'],
-                portTitle: 'My Work', portSub: 'Samples from my portfolio',
-                contactTitle: "Let's Work Together!",
-                contactSub: "Have a project? Need a design? Need editing? Or want to collaborate? I'm ready! Contact me on any platform.",
-                emailBtn: 'Send Email', phoneBtn: 'Call Me',
-                footerRights: 'All Rights Reserved',
-                openLink: '🔗 Open Link', downloadFile: '⬇️ Download File',
-                logoName: 'Maher Mohamed Ali', footerCopy: '© 2026 Maher Mohamed Ali. All Rights Reserved.'
-            }
-        };
-
-        function applyLang(lang) {
-            const t = T[lang];
-            document.documentElement.lang = t.lang;
-            document.documentElement.dir = t.dir;
-            document.getElementById('langBtn').textContent = t.langBtn;
-
-            // Nav
-            document.querySelectorAll('.nav-links a').forEach((a,i) => { if(t.nav[i]) a.textContent = t.nav[i]; });
-            const navLogo = document.getElementById('navLogo');
-            if(navLogo) navLogo.textContent = t.logoName;
-            const footerLogo = document.getElementById('footerLogo');
-            if(footerLogo) footerLogo.textContent = t.logoName;
-            const footerCopyEl = document.getElementById('footerCopy');
-            if(footerCopyEl) footerCopyEl.textContent = t.footerCopy;
-
-            // Hero
-            const heroBadge = document.querySelector('.hero-badge');
-            if(heroBadge) heroBadge.innerHTML = '<i class="fas fa-star" style="color:var(--secondary);margin-left:0.5rem;margin-right:0.5rem;"></i>' + t.heroBadge;
-            const heroH1 = document.querySelector('.hero h1');
-            if(heroH1) heroH1.innerHTML = t.heroH1;
-            const heroSub = document.querySelector('.hero-subtitle');
-            if(heroSub) heroSub.textContent = t.heroSub;
-            const heroBio = document.querySelector('.hero-bio');
-            if(heroBio) heroBio.textContent = t.heroBio;
-            const heroBtns = document.querySelectorAll('.hero-buttons .btn');
-            if(heroBtns[0]) heroBtns[0].innerHTML = '<i class="fas fa-eye"></i> ' + t.heroBtn1;
-            if(heroBtns[1]) heroBtns[1].innerHTML = '<i class="fas fa-paper-plane"></i> ' + t.heroBtn2;
-
-            // About
-            const aboutTitles = document.querySelectorAll('#about .section-title h2, #about .section-title p');
-            if(aboutTitles[0]) aboutTitles[0].textContent = t.aboutTitle;
-            if(aboutTitles[1]) aboutTitles[1].textContent = t.aboutSub;
-            document.querySelectorAll('#about .card').forEach((card, i) => {
-                if(t.cards[i]) {
-                    card.querySelector('h3').textContent = t.cards[i].title;
-                    card.querySelector('p').textContent = t.cards[i].desc;
+            let thumbHTML = '';
+            if (first) {
+                if (kind === 'video') {
+                    thumbHTML = `
+                        <video src="${src}" muted loop playsinline preload="metadata" style="width:100%;height:100%;object-fit:cover;" onerror="this.outerHTML='<div style=&quot;display:flex;align-items:center;justify-content:center;height:100%;font-size:40px;&quot;>🎬</div>'"></video>
+                        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:36px;color:#fff;pointer-events:none;text-shadow:0 2px 10px rgba(0,0,0,0.6);"><i class="fas fa-play-circle"></i></div>`;
+                } else if (kind === 'image') {
+                    thumbHTML = `<img src="${src}" style="width:100%;height:100%;object-fit:cover;" loading="lazy" onerror="this.outerHTML='<div style=&quot;display:flex;align-items:center;justify-content:center;height:100%;font-size:40px;&quot;>🖼️</div>'" />`;
+                } else {
+                    thumbHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;background:#1a1a2e;gap:8px;">
+                        <span style="font-size:52px;">${kind === 'pdf' ? '📄' : '📁'}</span>
+                        <span style="font-size:11px;color:#64748b;max-width:80%;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${fname}</span>
+                    </div>`;
                 }
-            });
-
-            // Experience
-            const expTitles = document.querySelectorAll('#experience .section-title h2, #experience .section-title p');
-            if(expTitles[0]) expTitles[0].textContent = t.expTitle;
-            if(expTitles[1]) expTitles[1].textContent = t.expSub;
-            document.querySelectorAll('#experience .timeline-item').forEach((item, i) => {
-                if(t.exp[i]) {
-                    const titleEl = item.querySelector('.timeline-title');
-                    const orgEl = item.querySelector('.timeline-org');
-                    const dateEl = item.querySelector('.timeline-date');
-                    const descEl = item.querySelector('.timeline-desc');
-                    if(titleEl) titleEl.textContent = t.exp[i].title;
-                    if(orgEl) orgEl.textContent = t.exp[i].org;
-                    if(dateEl) dateEl.textContent = t.exp[i].date;
-                    if(descEl) descEl.textContent = t.exp[i].desc;
-                }
-            });
-
-            // Skills
-            const skillTitles = document.querySelectorAll('#skills .section-title h2, #skills .section-title p');
-            if(skillTitles[0]) skillTitles[0].textContent = t.skillsTitle;
-            if(skillTitles[1]) skillTitles[1].textContent = t.skillsSub;
-            document.querySelectorAll('#skills .skill-item .skill-info span').forEach((el,i) => {
-                if(t.skillsSubs[i]) el.textContent = t.skillsSubs[i];
-            });
-
-            // Portfolio
-            const portTitles = document.querySelectorAll('#portfolio .section-title h2');
-            if(portTitles[0]) portTitles[0].textContent = t.portTitle;
-            const portSub = document.getElementById('portfolioSubtitle');
-            if(portSub) portSub.textContent = t.portSub;
-
-            // Contact
-            const contactH2 = document.querySelector('#contact h2');
-            const contactP = document.querySelector('#contact .contact-section > p');
-            if(contactH2) contactH2.textContent = t.contactTitle;
-            if(contactP) contactP.innerHTML = t.contactSub.replace('\n','<br>');
-            const contactBtns = document.querySelectorAll('#contact .hero-buttons .btn');
-            if(contactBtns[0]) contactBtns[0].innerHTML = '<i class="fas fa-envelope"></i> ' + t.emailBtn;
-            if(contactBtns[1]) contactBtns[1].innerHTML = '<i class="fas fa-phone"></i> ' + t.phoneBtn;
-
-            // Footer
-            const footerRights = document.querySelector('footer p:last-child');
-            if(footerRights && footerRights.textContent.includes('محفوظة') || footerRights && footerRights.textContent.includes('Rights')) {
-                footerRights.textContent = '© 2026 Maher Mohamed — ' + t.footerRights;
+            } else if (hasLink) {
+                thumbHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;background:#1a1a2e;gap:8px;">
+                    <span style="font-size:52px;">🔗</span>
+                    <span style="font-size:12px;color:#6c63ff;font-weight:700;">رابط خارجي</span>
+                </div>`;
+            } else {
+                thumbHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:40px;">🖼️</div>`;
             }
+
+            return `
+                <div class="portfolio-item" onclick="openLB(${realIdx})" style="cursor:pointer;">
+                    <div class="portfolio-img" style="padding:0;overflow:hidden;position:relative;">
+                        ${thumbHTML}
+                        ${w.media && w.media.length > 1 ? `<span style="position:absolute;top:10px;left:10px;background:rgba(0,0,0,0.65);color:white;font-size:12px;padding:4px 10px;border-radius:20px;backdrop-filter:blur(4px);">📎 ${w.media.length}</span>` : ''}
+                        <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.7) 0%,transparent 50%);opacity:0;transition:opacity 0.3s;pointer-events:none;"
+                            onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0">
+                            <span style="position:absolute;bottom:16px;right:16px;color:white;font-weight:700;font-size:14px;">عرض التفاصيل ←</span>
+                        </div>
+                    </div>
+                    <div class="portfolio-info">
+                        <h3>${w.title}</h3>
+                        ${w.description ? `<p>${w.description.length > 80 ? w.description.slice(0,80)+'...' : w.description}</p>` : ''}
+                        <div class="portfolio-tags">
+                            <span class="tag">${typeLabels[w.type] || w.type}</span>
+                            ${w.tools ? w.tools.split(',').slice(0,2).map(t => `<span class="tag">${t.trim()}</span>`).join('') : ''}
+                        </div>
+                        ${hasLink ? `<a href="${w.video_link}" target="_blank" onclick="event.stopPropagation()" style="display:inline-block;margin-top:12px;background:linear-gradient(135deg,#6c63ff,#8b5cf6);color:white;padding:10px 22px;border-radius:50px;font-size:13px;font-weight:900;text-decoration:none;box-shadow:0 4px 16px rgba(108,99,255,0.4);white-space:nowrap;">🔗 فتح الرابط</a>` : ''}
+                    </div>
+                </div>`;
+        }).join('');
+    }
+
+    // ===== LIGHTBOX (GLOBAL) =====
+    function openLB(idx) {
+        lbWork = allWorks[idx];
+        if (!lbWork) return;
+        lbIdx = 0;
+
+        document.getElementById('lbTitle').textContent = lbWork.title || '';
+        document.getElementById('lbDesc').textContent = lbWork.description || '';
+        document.getElementById('lbTags').innerHTML = [
+            `<span class="tag">${typeLabels[lbWork.type] || lbWork.type}</span>`,
+            ...(lbWork.tools ? lbWork.tools.split(',').map(t => `<span class="tag">${t.trim()}</span>`) : [])
+        ].join('');
+
+        // Remove old action buttons
+        document.querySelectorAll('.lb-action-btn').forEach(b => b.remove());
+
+        // Add link button if exists
+        if (lbWork.video_link) {
+            const linkBtn = document.createElement('a');
+            linkBtn.className = 'lb-action-btn';
+            linkBtn.href = lbWork.video_link;
+            linkBtn.target = '_blank';
+            linkBtn.textContent = '🔗 فتح الرابط';
+            linkBtn.style.cssText = 'display:inline-block;margin-top:14px;margin-left:10px;background:linear-gradient(135deg,#f59e0b,#ef4444);color:white;padding:14px 32px;border-radius:50px;text-decoration:none;font-weight:900;font-size:15px;box-shadow:0 6px 24px rgba(245,158,11,0.4);white-space:nowrap;';
+            document.getElementById('lbTags').after(linkBtn);
         }
 
-        document.addEventListener('DOMContentLoaded', function() {
+        const hasMedia = lbWork.media && lbWork.media.length > 0;
+        const container = document.getElementById('lbMedia');
+
+        // Clear old content (keep prev/next buttons)
+        Array.from(container.children).forEach(c => {
+            if (c.id === 'lbPrev' || c.id === 'lbNext') return;
+            c.remove();
+        });
+
+        if (hasMedia) {
+            renderLBMedia();
+        } else if (lbWork.video_link) {
+            const div = document.createElement('div');
+            div.style.cssText = 'width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;background:#020617;';
+            div.innerHTML = `
+                <span style="font-size:72px;">🔗</span>
+                <span style="color:white;font-size:16px;font-weight:700;">${lbWork.title}</span>
+                <a href="${lbWork.video_link}" target="_blank" style="background:linear-gradient(135deg,#f59e0b,#ef4444);color:white;padding:16px 40px;border-radius:50px;text-decoration:none;font-weight:900;font-size:17px;box-shadow:0 8px 32px rgba(245,158,11,0.4);white-space:nowrap;">🔗 فتح الرابط</a>`;
+            container.appendChild(div);
+            document.getElementById('lbDots').innerHTML = '';
+            document.getElementById('lbPrev').style.display = 'none';
+            document.getElementById('lbNext').style.display = 'none';
+        }
+
+        document.getElementById('lightbox').style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    }
+
+    function renderLBMedia() {
+        const media = lbWork.media;
+        const item = media[lbIdx];
+        const kind = mediaKind(item);
+        const src = mediaSrc(item);
+        const name = mediaName(item);
+        const container = document.getElementById('lbMedia');
+        const prev = document.getElementById('lbPrev');
+        const next = document.getElementById('lbNext');
+
+        // Clear old media elements (keep prev/next)
+        Array.from(container.children).forEach(c => {
+            if (c.id === 'lbPrev' || c.id === 'lbNext') return;
+            c.remove();
+        });
+
+        if (kind === 'video') {
+            const vid = document.createElement('video');
+            vid.src = src;
+            vid.controls = true;
+            vid.muted = false;
+            vid.playsInline = true;
+            vid.autoplay = true;
+            vid.style.cssText = 'width:100%;height:100%;object-fit:contain;background:#000;';
+            vid.onerror = function() {
+                const fallback = document.createElement('div');
+                fallback.style.cssText = 'width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:#020617;color:#fff;padding:20px;text-align:center;';
+                fallback.innerHTML = `<span style="font-size:64px;">🎬</span>
+                    <span style="font-size:14px;color:#94a3b8;">تعذر تشغيل الفيديو هنا</span>
+                    <a href="${src}" target="_blank" rel="noopener" style="background:linear-gradient(135deg,#6c63ff,#8b5cf6);color:white;padding:14px 32px;border-radius:50px;text-decoration:none;font-weight:900;">👁 فتح الفيديو في تبويب جديد</a>`;
+                if (vid.parentNode) vid.parentNode.replaceChild(fallback, vid);
+            };
+            container.insertBefore(vid, prev);
+            // Try to play
+            setTimeout(() => { vid.play().catch(() => {}); }, 50);
+        } else if (kind === 'image') {
+            const img = document.createElement('img');
+            img.src = src;
+            img.style.cssText = 'width:100%;height:100%;object-fit:contain;';
+            img.onerror = function() {
+                const fallback = document.createElement('div');
+                fallback.style.cssText = 'width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:64px;background:#020617;';
+                fallback.textContent = '🖼️';
+                if (img.parentNode) img.parentNode.replaceChild(fallback, img);
+            };
+            container.insertBefore(img, prev);
+        } else {
+            // PDF or any other file - show view + download + link buttons
+            const docDiv = document.createElement('div');
+            docDiv.style.cssText = 'width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;background:#020617;padding:20px;text-align:center;';
+            let btns = `<a href="${src}" target="_blank" rel="noopener" style="background:linear-gradient(135deg,#6c63ff,#8b5cf6);color:white;padding:14px 32px;border-radius:50px;text-decoration:none;font-weight:900;font-size:15px;box-shadow:0 8px 32px rgba(108,99,255,0.5);white-space:nowrap;">👁 عرض الملف</a>`;
+            btns += `<a href="${downloadHref(src, name)}" style="background:linear-gradient(135deg,#22c55e,#16a34a);color:white;padding:14px 32px;border-radius:50px;text-decoration:none;font-weight:900;font-size:15px;box-shadow:0 8px 32px rgba(34,197,94,0.4);white-space:nowrap;">⬇️ تحميل الملف</a>`;
+            if (lbWork.video_link) {
+                btns += `<a href="${lbWork.video_link}" target="_blank" rel="noopener" style="background:linear-gradient(135deg,#f59e0b,#ef4444);color:white;padding:14px 32px;border-radius:50px;text-decoration:none;font-weight:900;font-size:15px;box-shadow:0 6px 24px rgba(245,158,11,0.4);white-space:nowrap;">🔗 فتح الرابط</a>`;
+            }
+            docDiv.innerHTML = `
+                <span style="font-size:64px;">${kind === 'pdf' ? '📄' : '📁'}</span>
+                <span style="color:white;font-size:16px;font-weight:700;word-break:break-all;">${name}</span>
+                <div style="display:flex;gap:14px;flex-wrap:wrap;justify-content:center;">${btns}</div>`;
+            container.insertBefore(docDiv, prev);
+        }
+
+        prev.style.display = media.length > 1 ? 'block' : 'none';
+        next.style.display = media.length > 1 ? 'block' : 'none';
+
+        document.getElementById('lbDots').innerHTML = media.map((_, i) =>
+            `<div onclick="lbGoto(${i})" style="width:8px;height:8px;border-radius:50%;background:${i===lbIdx ? 'var(--primary)' : 'rgba(255,255,255,0.3)'};cursor:pointer;transition:background 0.2s;"></div>`
+        ).join('');
+    }
+
+    function lbNav(dir) {
+        if (!lbWork || !lbWork.media) return;
+        lbIdx = (lbIdx + dir + lbWork.media.length) % lbWork.media.length;
+        renderLBMedia();
+    }
+
+    function lbGoto(i) {
+        if (!lbWork || !lbWork.media) return;
+        lbIdx = i;
+        renderLBMedia();
+    }
+
+    function closeLB() {
+        // Stop any playing videos
+        const videos = document.querySelectorAll('#lbMedia video');
+        videos.forEach(v => { v.pause(); v.src = ''; });
+        document.getElementById('lightbox').style.display = 'none';
+        document.body.style.overflow = '';
+    }
+
+
+    // ===== TRANSLATIONS =====
+    const T = {
+        ar: {
+            dir: 'rtl', lang: 'ar', langBtn: '🌐 EN',
+            nav: ['الرئيسية','عني','الخبرات','المهارات','أعمالي','تواصل'],
+            heroBadge: 'مصمم جرافيك & إعلامي',
+            heroH1: 'أنا <span>ماهر محمد علي</span><br>أحول الأفكار إلى واقع بصري',
+            heroSub: 'طالب زراعة | مصمم جرافيك | مونتاج | إعلامي',
+            heroBio: 'شاب طموح عمره 19 سنة، بدرس في كلية الزراعة جامعة طنطا، وفي نفس الوقت بمارس شغفي في التصميم والإعلام. عندي خبرة في الجرافيك ديزاين والمونتاج والتصوير، وشغال في المجال الطلابي والإعلامي على أعلى مستوى.',
+            heroBtn1: 'شوف أعمالي', heroBtn2: 'تواصل معايا',
+            aboutTitle: 'نبذة عني', aboutSub: 'من أنا وإيه اللي بميزني',
+            cards: [
+                { title: 'تصميم إبداعي', desc: 'بصمم بوسترات، سوشيال ميديا، هويات بصرية، وكل حاجة تحتاجها عشان تظهر بشكل احترافي. شغلي بيتميز بالإبداع والدقة.' },
+                { title: 'مونتاج فيديو', desc: 'بعمل مونتاج احترافي للفيديوهات، سواء كانت فيديوهات تسويقية، تغطيات، أو محتوى سوشيال ميديا بجودة عالية.' },
+                { title: 'إعلام ومحتوى', desc: 'خبرة في إدارة المحتوى الإعلامي للمنظمات والاتحادات الطلابية، وإدارة الصفحات والحسابات على السوشيال ميديا.' }
+            ],
+            expTitle: 'خبراتي ومناصبي', expSub: 'المسيرة الإعلامية والطلابية',
+            exp: [
+                { title: 'رئيس الميديا (Head of Media)', org: 'اتحاد طلاب تحيا مصر - وزارة الشباب والرياضة - محافظة الغربية', date: 'الحالي', desc: 'مسؤول عن إدارة الفريق الإعلامي بالكامل، وضع الاستراتيجيات الإعلامية، إشراف على المحتوى البصري والمرئي، وتنسيق الحملات الإعلامية للاتحاد على مستوى الجمهورية.' },
+                { title: 'نائب رئيس الميديا (Vice Media)', org: 'أسرة طلاب من أجل مصر - كلية الزراعة جامعة طنطا', date: 'الحالي', desc: 'إدارة الفريق الإعلامي للأسرة، تصميم الهوية البصرية، إنتاج المحتوى للفعاليات والأنشطة، وتغطية الفعاليات الطلابية بشكل احترافي.' },
+                { title: 'نائب رئيس الميديا (Vice Media)', org: 'اتحاد طلاب كلية الزراعة - جامعة طنطا', date: 'الحالي', desc: 'مسؤول عن الجانب الإعلامي لاتحاد الكلية، تصميم البوسترات والإعلانات للأنشطة، إدارة صفحات الاتحاد، وتغطية الفعاليات الرسمية للكلية.' },
+                { title: 'طالب زراعة', org: 'كلية الزراعة - جامعة طنطا', date: '2024 - الآن', desc: 'طالب في الفرقة الثانية بكلية الزراعة جامعة طنطا، بجمع بين الدراسة العلمية والشغف الإبداعي في المجال الإعلامي.' }
+            ],
+            skillsTitle: 'مهاراتي', skillsSub: 'التقنيات والأدوات اللي بشتغل بيها',
+            skillsSubs: ['تصميم جرافيك احترافي','تصميم فيكتور وهوية بصرية','مونتاج فيديو احترافي','موشن جرافيك وefects بصرية','تصميم UI/UX وسريع','تصوير احترافي للفعاليات','إدارة المحتوى والحملات','كتابة محتوى وكابشنز'],
+            portTitle: 'أعمالي', portSub: 'نماذج من الشغل اللي عملته',
+            contactTitle: 'خلينا نشتغل مع بعض!',
+            contactSub: 'عندك مشروع؟ عاوز تصميم؟ محتاج مونتاج؟ أو عاوز تتعاون في حاجة إعلامية؟ أنا جاهز! تواصل معايا على أي منصة.',
+            emailBtn: 'ابعت إيميل', phoneBtn: 'اتصل بيا',
+            footerRights: 'جميع الحقوق محفوظة',
+            openLink: '🔗 فتح الرابط', downloadFile: '⬇️ تحميل الملف',
+            logoName: 'ماهر محمد علي', footerCopy: '© 2026 ماهر محمد علي. جميع الحقوق محفوظة.'
+        },
+        en: {
+            dir: 'ltr', lang: 'en', langBtn: '🌐 AR',
+            nav: ['Home','About','Experience','Skills','Portfolio','Contact'],
+            heroBadge: 'Graphic Designer & Media Professional',
+            heroH1: "I'm <span>Maher Mohamed Ali</span><br>Turning Ideas Into Visual Reality",
+            heroSub: 'Agriculture Student | Graphic Designer | Video Editor | Media',
+            heroBio: 'An ambitious 19-year-old studying at the Faculty of Agriculture, Tanta University, while pursuing my passion in design and media. I have experience in graphic design, video editing, and photography, working in student and media fields at the highest level.',
+            heroBtn1: 'View My Work', heroBtn2: 'Contact Me',
+            aboutTitle: 'About Me', aboutSub: 'Who I am and what makes me stand out',
+            cards: [
+                { title: 'Creative Design', desc: 'I design posters, social media content, visual identities, and everything you need to look professional. My work is characterized by creativity and precision.' },
+                { title: 'Video Editing', desc: 'I produce professional video edits, whether marketing videos, event coverage, or high-quality social media content.' },
+                { title: 'Media & Content', desc: 'Experience in managing media content for organizations and student unions, and managing social media pages and accounts.' }
+            ],
+            expTitle: 'Experience & Positions', expSub: 'My media and student journey',
+            exp: [
+                { title: 'Head of Media', org: 'Tahya Misr Student Union - Ministry of Youth & Sports - Gharbia Governorate', date: 'Current', desc: 'Responsible for managing the entire media team, developing media strategies, overseeing visual content, and coordinating media campaigns at the national level.' },
+                { title: 'Vice Head of Media', org: 'Students for Egypt Family - Faculty of Agriculture, Tanta University', date: 'Current', desc: 'Managing the family media team, designing visual identity, producing content for events and activities, and covering student events professionally.' },
+                { title: 'Vice Head of Media', org: 'Faculty of Agriculture Student Union - Tanta University', date: 'Current', desc: 'Responsible for the media side of the faculty union, designing posters and announcements, managing union pages, and covering official faculty events.' },
+                { title: 'Agriculture Student', org: 'Faculty of Agriculture - Tanta University', date: '2024 - Present', desc: 'Second-year student at the Faculty of Agriculture, Tanta University, combining scientific study with creative passion in the media field.' }
+            ],
+            skillsTitle: 'My Skills', skillsSub: 'Technologies and tools I work with',
+            skillsSubs: ['Professional Graphic Design','Vector Design & Visual Identity','Professional Video Editing','Motion Graphics & Visual Effects','UI/UX & Quick Design','Professional Event Photography','Content & Campaign Management','Creative Writing & Captions'],
+            portTitle: 'My Work', portSub: 'Samples from my portfolio',
+            contactTitle: "Let's Work Together!",
+            contactSub: "Have a project? Need a design? Need editing? Or want to collaborate? I'm ready! Contact me on any platform.",
+            emailBtn: 'Send Email', phoneBtn: 'Call Me',
+            footerRights: 'All Rights Reserved',
+            openLink: '🔗 Open Link', downloadFile: '⬇️ Download File',
+            logoName: 'Maher Mohamed Ali', footerCopy: '© 2026 Maher Mohamed Ali. All Rights Reserved.'
+        }
+    };
+
+    function applyLang(lang) {
+        const t = T[lang];
+        document.documentElement.lang = t.lang;
+        document.documentElement.dir = t.dir;
+        document.getElementById('langBtn').textContent = t.langBtn;
+
+        // Nav
+        document.querySelectorAll('.nav-links a').forEach((a,i) => { if(t.nav[i]) a.textContent = t.nav[i]; });
+        const navLogo = document.getElementById('navLogo');
+        if(navLogo) navLogo.textContent = t.logoName;
+        const footerLogo = document.getElementById('footerLogo');
+        if(footerLogo) footerLogo.textContent = t.logoName;
+        const footerCopyEl = document.getElementById('footerCopy');
+        if(footerCopyEl) footerCopyEl.textContent = t.footerCopy;
+
+        // Hero
+        const heroBadge = document.querySelector('.hero-badge');
+        if(heroBadge) heroBadge.innerHTML = '<i class="fas fa-star" style="color:var(--secondary);margin-left:0.5rem;margin-right:0.5rem;"></i>' + t.heroBadge;
+        const heroH1 = document.querySelector('.hero h1');
+        if(heroH1) heroH1.innerHTML = t.heroH1;
+        const heroSub = document.querySelector('.hero-subtitle');
+        if(heroSub) heroSub.textContent = t.heroSub;
+        const heroBio = document.querySelector('.hero-bio');
+        if(heroBio) heroBio.textContent = t.heroBio;
+        const heroBtns = document.querySelectorAll('.hero-buttons .btn');
+        if(heroBtns[0]) heroBtns[0].innerHTML = '<i class="fas fa-eye"></i> ' + t.heroBtn1;
+        if(heroBtns[1]) heroBtns[1].innerHTML = '<i class="fas fa-paper-plane"></i> ' + t.heroBtn2;
+
+        // About
+        const aboutTitles = document.querySelectorAll('#about .section-title h2, #about .section-title p');
+        if(aboutTitles[0]) aboutTitles[0].textContent = t.aboutTitle;
+        if(aboutTitles[1]) aboutTitles[1].textContent = t.aboutSub;
+        document.querySelectorAll('#about .card').forEach((card, i) => {
+            if(t.cards[i]) {
+                card.querySelector('h3').textContent = t.cards[i].title;
+                card.querySelector('p').textContent = t.cards[i].desc;
+            }
+        });
+
+        // Experience
+        const expTitles = document.querySelectorAll('#experience .section-title h2, #experience .section-title p');
+        if(expTitles[0]) expTitles[0].textContent = t.expTitle;
+        if(expTitles[1]) expTitles[1].textContent = t.expSub;
+        document.querySelectorAll('#experience .timeline-item').forEach((item, i) => {
+            if(t.exp[i]) {
+                const titleEl = item.querySelector('.timeline-title');
+                const orgEl = item.querySelector('.timeline-org');
+                const dateEl = item.querySelector('.timeline-date');
+                const descEl = item.querySelector('.timeline-desc');
+                if(titleEl) titleEl.textContent = t.exp[i].title;
+                if(orgEl) orgEl.textContent = t.exp[i].org;
+                if(dateEl) dateEl.textContent = t.exp[i].date;
+                if(descEl) descEl.textContent = t.exp[i].desc;
+            }
+        });
+
+        // Skills
+        const skillTitles = document.querySelectorAll('#skills .section-title h2, #skills .section-title p');
+        if(skillTitles[0]) skillTitles[0].textContent = t.skillsTitle;
+        if(skillTitles[1]) skillTitles[1].textContent = t.skillsSub;
+        document.querySelectorAll('#skills .skill-item .skill-info span').forEach((el,i) => {
+            if(t.skillsSubs[i]) el.textContent = t.skillsSubs[i];
+        });
+
+        // Portfolio
+        const portTitles = document.querySelectorAll('#portfolio .section-title h2');
+        if(portTitles[0]) portTitles[0].textContent = t.portTitle;
+        const portSub = document.getElementById('portfolioSubtitle');
+        if(portSub) portSub.textContent = t.portSub;
+
+        // Contact
+        const contactH2 = document.querySelector('#contact h2');
+        const contactP = document.querySelector('#contact .contact-section > p');
+        if(contactH2) contactH2.textContent = t.contactTitle;
+        if(contactP) contactP.innerHTML = t.contactSub.replace('\n','<br>');
+        const contactBtns = document.querySelectorAll('#contact .hero-buttons .btn');
+        if(contactBtns[0]) contactBtns[0].innerHTML = '<i class="fas fa-envelope"></i> ' + t.emailBtn;
+        if(contactBtns[1]) contactBtns[1].innerHTML = '<i class="fas fa-phone"></i> ' + t.phoneBtn;
+
+        // Footer
+        const footerRights = document.querySelector('footer p:last-child');
+        if(footerRights && (footerRights.textContent.includes('محفوظة') || footerRights.textContent.includes('Rights'))) {
+            footerRights.textContent = '© 2026 Maher Mohamed — ' + t.footerRights;
+        }
+    }
+
+    // ===== DOMContentLoaded =====
+    document.addEventListener('DOMContentLoaded', function() {
         // Create particles
         const particlesContainer = document.getElementById('particles');
         for (let i = 0; i < 50; i++) {
@@ -1373,18 +1664,15 @@ const T = {
 
         // Scroll reveal
         const revealElements = document.querySelectorAll('.reveal');
-
         const revealOnScroll = () => {
             revealElements.forEach(element => {
                 const elementTop = element.getBoundingClientRect().top;
                 const windowHeight = window.innerHeight;
-
                 if (elementTop < windowHeight - 100) {
                     element.classList.add('active');
                 }
             });
         };
-
         window.addEventListener('scroll', revealOnScroll);
         revealOnScroll();
 
@@ -1394,10 +1682,7 @@ const T = {
                 e.preventDefault();
                 const target = document.querySelector(this.getAttribute('href'));
                 if (target) {
-                    target.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'start'
-                    });
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
             });
         });
@@ -1412,290 +1697,6 @@ const T = {
             }
         });
 
-        // =============================================
-        // PORTFOLIO DYNAMIC LOADER - من لوحة التحكم
-        // =============================================
-        const typeLabels = {
-            design: 'تصميم جرافيك',
-            video: 'مونتاج فيديو',
-            photo: 'تصوير',
-            motion: 'موشن جرافيك',
-            brand: 'هوية بصرية'
-        };
-
-        const typeIcons = {
-            design: 'fas fa-palette',
-            video: 'fas fa-video',
-            photo: 'fas fa-camera',
-            motion: 'fas fa-star',
-            brand: 'fas fa-paint-brush'
-        };
-
-        // ===== Media helpers: تتعامل مع أي تسمية حقول (data/url, file_type/type, file_name/name) =====
-        function mediaSrc(item) {
-            return item.data || item.url || item.src || '';
-        }
-
-        function mediaName(item) {
-            return item.file_name || item.name || 'الملف';
-        }
-
-        function mediaKind(item) {
-            const src = mediaSrc(item).toLowerCase();
-            const name = mediaName(item).toLowerCase();
-            const ft = (item.file_type || item.type || '').toLowerCase();
-            const path = src.split('?')[0];
-
-            if (ft.startsWith('video') || /\.(mp4|webm|mov|ogg|m4v|avi|mkv)$/.test(path) || /\.(mp4|webm|mov|ogg|m4v|avi|mkv)$/.test(name)) return 'video';
-            if (ft.startsWith('image') || /\.(jpe?g|png|gif|webp|svg|avif|bmp)$/.test(path) || /\.(jpe?g|png|gif|webp|svg|avif|bmp)$/.test(name)) return 'image';
-            if (ft === 'application/pdf' || path.endsWith('.pdf') || name.endsWith('.pdf')) return 'pdf';
-            return 'file';
-        }
-
-        // يضيف باراميتر download لرابط Supabase Storage عشان يفرض تحميل الملف فعليًا
-        function downloadHref(src, name) {
-            if (!src) return '#';
-            const sep = src.includes('?') ? '&' : '?';
-            return `${src}${sep}download=${encodeURIComponent(name || 'file')}`;
-        }
-
-        let allWorks = [];
-        let currentFilter = 'all';
-        let lbWork = null, lbIdx = 0;
-
-        function buildFilters() {
-            const bar = document.getElementById('portfolioFilters');
-            if (allWorks.length === 0) { bar.style.display = 'none'; return; }
-            bar.style.display = 'flex';
-            const types = ['all', ...new Set(allWorks.map(w => w.type))];
-            bar.innerHTML = types.map(t => `
-                <button onclick="filterBy('${t}', this)" style="
-                    padding:8px 20px;border-radius:50px;border:2px solid ${t === currentFilter ? 'var(--primary)' : 'rgba(255,255,255,0.15)'};
-                    background:${t === currentFilter ? 'var(--primary)' : 'transparent'};
-                    color:${t === currentFilter ? 'white' : 'var(--light)'};
-                    font-family:'Cairo',sans-serif;font-weight:700;font-size:14px;cursor:pointer;transition:all 0.3s;
-                ">${t === 'all' ? 'الكل' : (typeLabels[t] || t)}</button>
-            `).join('');
-        }
-
-        function filterBy(type, btn) {
-            currentFilter = type;
-            buildFilters();
-            renderWorks();
-        }
-
-        function renderWorks() {
-            const grid = document.getElementById('portfolioGrid');
-            const filtered = currentFilter === 'all' ? allWorks : allWorks.filter(w => w.type === currentFilter);
-
-            if (filtered.length === 0) {
-                document.getElementById('portfolioSubtitle').textContent = 'نماذج من الشغل اللي عملته';
-                grid.innerHTML = `
-                    <div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:#64748b;">
-                        <i class="fas fa-image" style="font-size:48px;margin-bottom:16px;display:block;"></i>
-                        <p style="font-size:16px;">${allWorks.length === 0 ? 'الأعمال هتظهر هنا بعد ما ترفعها من لوحة التحكم' : 'مفيش أعمال في هذه الفئة'}</p>
-                    </div>`;
-                return;
-            }
-
-            document.getElementById('portfolioSubtitle').textContent = `${filtered.length} عمل متاح`;
-
-            grid.innerHTML = filtered.map((w, i) => {
-                const realIdx = allWorks.indexOf(w);
-                const first = w.media && w.media[0];
-                const kind = first ? mediaKind(first) : null;
-                const src = first ? mediaSrc(first) : '';
-                const fname = first ? mediaName(first) : '';
-                const hasLink = !!w.video_link;
-
-                // Thumbnail HTML
-                let thumbHTML = '';
-                if (first) {
-                    if (kind === 'video') {
-                        thumbHTML = `
-                            <video src="${src}" muted loop playsinline preload="metadata" style="width:100%;height:100%;object-fit:cover;" onerror="this.outerHTML='<div style=&quot;display:flex;align-items:center;justify-content:center;height:100%;font-size:40px;&quot;>🎬</div>'"></video>
-                            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:36px;color:#fff;pointer-events:none;text-shadow:0 2px 10px rgba(0,0,0,0.6);"><i class="fas fa-play-circle"></i></div>`;
-                    } else if (kind === 'image') {
-                        thumbHTML = `<img src="${src}" style="width:100%;height:100%;object-fit:cover;" loading="lazy" onerror="this.outerHTML='<div style=&quot;display:flex;align-items:center;justify-content:center;height:100%;font-size:40px;&quot;>🖼️</div>'" />`;
-                    } else {
-                        // pdf أو أي ملف آخر (docx, pptx, zip...)
-                        thumbHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;background:#1a1a2e;gap:8px;">
-                            <span style="font-size:52px;">${kind === 'pdf' ? '📄' : '📁'}</span>
-                            <span style="font-size:11px;color:#64748b;max-width:80%;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${fname}</span>
-                        </div>`;
-                    }
-                } else if (hasLink) {
-                    thumbHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;background:#1a1a2e;gap:8px;">
-                        <span style="font-size:52px;">🔗</span>
-                        <span style="font-size:12px;color:#6c63ff;font-weight:700;">رابط خارجي</span>
-                    </div>`;
-                } else {
-                    thumbHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:40px;">🖼️</div>`;
-                }
-
-                return `
-                    <div class="portfolio-item" onclick="openLB(${realIdx})" style="cursor:pointer;">
-                        <div class="portfolio-img" style="padding:0;overflow:hidden;position:relative;">
-                            ${thumbHTML}
-                            ${w.media && w.media.length > 1 ? `<span style="position:absolute;top:10px;left:10px;background:rgba(0,0,0,0.65);color:white;font-size:12px;padding:4px 10px;border-radius:20px;backdrop-filter:blur(4px);">📎 ${w.media.length}</span>` : ''}
-                            <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.7) 0%,transparent 50%);opacity:0;transition:opacity 0.3s;pointer-events:none;"
-                                onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0">
-                                <span style="position:absolute;bottom:16px;right:16px;color:white;font-weight:700;font-size:14px;">عرض التفاصيل ←</span>
-                            </div>
-                        </div>
-                        <div class="portfolio-info">
-                            <h3>${w.title}</h3>
-                            ${w.description ? `<p>${w.description.length > 80 ? w.description.slice(0,80)+'...' : w.description}</p>` : ''}
-                            <div class="portfolio-tags">
-                                <span class="tag">${typeLabels[w.type] || w.type}</span>
-                                ${w.tools ? w.tools.split(',').slice(0,2).map(t => `<span class="tag">${t.trim()}</span>`).join('') : ''}
-                            </div>
-                            ${hasLink ? `<a href="${w.video_link}" target="_blank" onclick="event.stopPropagation()" style="display:inline-block;margin-top:12px;background:linear-gradient(135deg,#6c63ff,#8b5cf6);color:white;padding:10px 22px;border-radius:50px;font-size:13px;font-weight:900;text-decoration:none;box-shadow:0 4px 16px rgba(108,99,255,0.4);white-space:nowrap;">🔗 فتح الرابط</a>` : ''}
-                        </div>
-                    </div>`;
-            }).join('');
-        }
-
-        // LIGHTBOX
-        function openLB(idx) {
-            lbWork = allWorks[idx];
-            lbIdx = 0;
-
-            // Set title, desc, tags
-            document.getElementById('lbTitle').textContent = lbWork.title;
-            document.getElementById('lbDesc').textContent = lbWork.description || '';
-            document.getElementById('lbTags').innerHTML = [
-                `<span class="tag">${typeLabels[lbWork.type] || lbWork.type}</span>`,
-                ...(lbWork.tools ? lbWork.tools.split(',').map(t => `<span class="tag">${t.trim()}</span>`) : [])
-            ].join('');
-
-            // Remove old action buttons
-            document.querySelectorAll('.lb-action-btn').forEach(b => b.remove());
-
-            // Add link button if exists
-            if (lbWork.video_link) {
-                const linkBtn = document.createElement('a');
-                linkBtn.className = 'lb-action-btn';
-                linkBtn.href = lbWork.video_link;
-                linkBtn.target = '_blank';
-                linkBtn.textContent = '🔗 فتح الرابط';
-                linkBtn.style.cssText = 'display:inline-block;margin-top:14px;margin-left:10px;background:linear-gradient(135deg,#f59e0b,#ef4444);color:white;padding:14px 32px;border-radius:50px;text-decoration:none;font-weight:900;font-size:15px;box-shadow:0 6px 24px rgba(245,158,11,0.4);white-space:nowrap;';
-                document.getElementById('lbTags').after(linkBtn);
-            }
-
-            const hasMedia = lbWork.media && lbWork.media.length > 0;
-            const container = document.getElementById('lbMedia');
-
-            // Clear old content
-            Array.from(container.children).forEach(c => {
-                if (!c.id || c.id === 'lbPrev' || c.id === 'lbNext') return;
-                c.remove();
-            });
-            Array.from(container.children).forEach(c => {
-                if (c.tagName === 'IMG' || c.tagName === 'VIDEO' || (c.tagName === 'DIV' && !c.id)) c.remove();
-            });
-
-            if (hasMedia) {
-                renderLBMedia();
-            } else if (lbWork.video_link) {
-                // Link only - no media
-                const div = document.createElement('div');
-                div.style.cssText = 'width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;background:#020617;';
-                div.innerHTML = `
-                    <span style="font-size:72px;">🔗</span>
-                    <span style="color:white;font-size:16px;font-weight:700;">${lbWork.title}</span>
-                    <a href="${lbWork.video_link}" target="_blank" style="background:linear-gradient(135deg,#f59e0b,#ef4444);color:white;padding:16px 40px;border-radius:50px;text-decoration:none;font-weight:900;font-size:17px;box-shadow:0 8px 32px rgba(245,158,11,0.4);white-space:nowrap;">🔗 فتح الرابط</a>`;
-                container.appendChild(div);
-                document.getElementById('lbDots').innerHTML = '';
-                document.getElementById('lbPrev').style.display = 'none';
-                document.getElementById('lbNext').style.display = 'none';
-            }
-
-            document.getElementById('lightbox').style.display = 'flex';
-            document.body.style.overflow = 'hidden';
-        }
-
-        function renderLBMedia() {
-            const media = lbWork.media;
-            const item = media[lbIdx];
-            const kind = mediaKind(item);
-            const src = mediaSrc(item);
-            const name = mediaName(item);
-            const container = document.getElementById('lbMedia');
-            const prev = document.getElementById('lbPrev');
-            const next = document.getElementById('lbNext');
-
-            // Clear old media elements
-            Array.from(container.children).forEach(c => {
-                if (c.tagName === 'IMG' || c.tagName === 'VIDEO' || (c.tagName === 'DIV' && !c.id)) c.remove();
-            });
-
-            if (kind === 'video') {
-                const vid = document.createElement('video');
-                vid.src = src;
-                vid.controls = true;
-                vid.muted = true; // مهم: المتصفحات بتمنع التشغيل التلقائي للصوت، الكتم بيضمن إن الفيديو يفتح ويشتغل فورًا
-                vid.playsInline = true;
-                vid.autoplay = true;
-                vid.style.cssText = 'width:100%;height:100%;object-fit:contain;background:#000;';
-                vid.onerror = () => {
-                    const fallback = document.createElement('div');
-                    fallback.style.cssText = 'width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:#020617;color:#fff;padding:20px;text-align:center;';
-                    fallback.innerHTML = `<span style="font-size:64px;">🎬</span>
-                        <span style="font-size:14px;color:#94a3b8;">تعذر تشغيل الفيديو هنا</span>
-                        <a href="${src}" target="_blank" rel="noopener" style="background:linear-gradient(135deg,#6c63ff,#8b5cf6);color:white;padding:14px 32px;border-radius:50px;text-decoration:none;font-weight:900;">👁 فتح الفيديو في تبويب جديد</a>`;
-                    vid.replaceWith(fallback);
-                };
-                container.insertBefore(vid, prev);
-                // محاولة التشغيل برمجيًا لضمان فتح الفيديو فورًا
-                setTimeout(() => { vid.play().catch(() => {}); }, 50);
-            } else if (kind === 'image') {
-                const img = document.createElement('img');
-                img.src = src;
-                img.style.cssText = 'width:100%;height:100%;object-fit:contain;';
-                img.onerror = () => {
-                    const fallback = document.createElement('div');
-                    fallback.style.cssText = 'width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:64px;background:#020617;';
-                    fallback.textContent = '🖼️';
-                    img.replaceWith(fallback);
-                };
-                container.insertBefore(img, prev);
-            } else {
-                // PDF أو أي ملف آخر — زرار عرض الملف + زرار تحميل + زرار الرابط (لو موجود)
-                const docDiv = document.createElement('div');
-                docDiv.style.cssText = 'width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;background:#020617;padding:20px;text-align:center;';
-                let btns = `<a href="${src}" target="_blank" rel="noopener" style="background:linear-gradient(135deg,#6c63ff,#8b5cf6);color:white;padding:14px 32px;border-radius:50px;text-decoration:none;font-weight:900;font-size:15px;box-shadow:0 8px 32px rgba(108,99,255,0.5);white-space:nowrap;">👁 عرض الملف</a>`;
-                btns += `<a href="${downloadHref(src, name)}" style="background:linear-gradient(135deg,#22c55e,#16a34a);color:white;padding:14px 32px;border-radius:50px;text-decoration:none;font-weight:900;font-size:15px;box-shadow:0 8px 32px rgba(34,197,94,0.4);white-space:nowrap;">⬇️ تحميل الملف</a>`;
-                if (lbWork.video_link) {
-                    btns += `<a href="${lbWork.video_link}" target="_blank" rel="noopener" style="background:linear-gradient(135deg,#f59e0b,#ef4444);color:white;padding:14px 32px;border-radius:50px;text-decoration:none;font-weight:900;font-size:15px;box-shadow:0 6px 24px rgba(245,158,11,0.4);white-space:nowrap;">🔗 فتح الرابط</a>`;
-                }
-                docDiv.innerHTML = `
-                    <span style="font-size:64px;">${kind === 'pdf' ? '📄' : '📁'}</span>
-                    <span style="color:white;font-size:16px;font-weight:700;word-break:break-all;">${name}</span>
-                    <div style="display:flex;gap:14px;flex-wrap:wrap;justify-content:center;">${btns}</div>`;
-                container.insertBefore(docDiv, prev);
-            }
-
-            prev.style.display = media.length > 1 ? 'block' : 'none';
-            next.style.display = media.length > 1 ? 'block' : 'none';
-
-            document.getElementById('lbDots').innerHTML = media.map((_, i) =>
-                `<div onclick="lbGoto(${i})" style="width:8px;height:8px;border-radius:50%;background:${i===lbIdx ? 'var(--primary)' : 'rgba(255,255,255,0.3)'};cursor:pointer;transition:background 0.2s;"></div>`
-            ).join('');
-        }
-
-        function lbNav(dir) {
-            lbIdx = (lbIdx + dir + lbWork.media.length) % lbWork.media.length;
-            renderLBMedia();
-        }
-
-        function lbGoto(i) { lbIdx = i; renderLBMedia(); }
-
-        function closeLB() {
-            document.getElementById('lightbox').style.display = 'none';
-            document.body.style.overflow = '';
-        }
-
         // Close menu when link clicked
         document.querySelectorAll('.nav-links a').forEach(a => {
             a.addEventListener('click', () => {
@@ -1704,8 +1705,16 @@ const T = {
             });
         });
 
-        // FULL TRANSLATIONS
-        // translations moved to global
+        // Lightbox click outside to close
+        document.getElementById('lightbox').addEventListener('click', function(e) {
+            if (e.target === this) closeLB();
+        });
+
+        // Escape key to close lightbox
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeLB();
+        });
+
         // Load saved preferences
         if (localStorage.getItem('maher_theme') === 'light') {
             document.body.classList.add('light-mode');
@@ -1716,52 +1725,112 @@ const T = {
             applyLang('en');
         }
 
-        document.getElementById('lightbox').addEventListener('click', function(e) {
-            if (e.target === this) closeLB();
-        });
-
-        // =============================================
-        // SUPABASE CONFIG
-        // =============================================
-        const SUPABASE_URL = 'https://vkvssmoktvdrtzddylmp.supabase.co';
-        const SUPABASE_KEY = 'sb_publishable_uJ8cBUKaZCMKfVnsuDzNgg_2npCn-OO';
-
-        async function sbFetch(path) {
-            const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-                headers: {
-                    'apikey': SUPABASE_KEY,
-                    'Authorization': `Bearer ${SUPABASE_KEY}`
-                }
-            });
-            const text = await res.text();
-            return text ? JSON.parse(text) : [];
-        }
-
-        async function loadPortfolio() {
-            const grid = document.getElementById('portfolioGrid');
-            grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:#64748b;">
-                <i class="fas fa-spinner fa-spin" style="font-size:36px;margin-bottom:16px;display:block;"></i>
-                <p style="font-size:15px;">جاري تحميل الأعمال...</p>
-            </div>`;
-            try {
-                const data = await sbFetch('works?select=*,media(*)&visible=eq.true&order=created_at.desc');
-                allWorks = data;
-                buildFilters();
-                renderWorks();
-            } catch(e) {
-                console.error('Supabase error:', e);
-                document.getElementById('portfolioFilters').style.display = 'none';
-                grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:#64748b;">
-                    <i class="fas fa-wifi" style="font-size:48px;margin-bottom:16px;display:block;"></i>
-                    <p style="font-size:16px;margin-bottom:20px;">حصل خطأ في الاتصال، تأكد من الإنترنت وحاول تاني</p>
-                    <button onclick="loadPortfolio()" style="padding:12px 32px;border-radius:50px;border:none;background:var(--primary);color:white;font-family:'Cairo',sans-serif;font-weight:700;font-size:14px;cursor:pointer;">إعادة المحاولة</button>
-                </div>`;
-            }
-        }
-
+        // ===== SUPABASE LOADING =====
         loadPortfolio();
+    });
 
-    }); // end DOMContentLoaded
+    // ===== SUPABASE CONFIG & LOADING =====
+    // ⚠️ IMPORTANT: Replace with your REAL Supabase anon/public key!
+    // The key below is a placeholder. Get it from: Supabase Dashboard → Project Settings → API → anon public
+    const SUPABASE_URL = 'https://vkvssmoktvdrtzddylmp.supabase.co';
+    const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY_HERE';
+
+    async function sbFetch(path) {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+            headers: {
+                'apikey': SUPABASE_KEY,
+                'Authorization': `Bearer ${SUPABASE_KEY}`
+            }
+        });
+        const text = await res.text();
+        return text ? JSON.parse(text) : [];
+    }
+
+    async function loadPortfolio() {
+        const grid = document.getElementById('portfolioGrid');
+        grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:#64748b;">
+            <i class="fas fa-spinner fa-spin" style="font-size:36px;margin-bottom:16px;display:block;"></i>
+            <p style="font-size:15px;">جاري تحميل الأعمال...</p>
+        </div>`;
+
+        // If no valid key, show demo works immediately
+        if (SUPABASE_KEY.includes('YOUR_SUPABASE') || SUPABASE_KEY.includes('sb_publishable')) {
+            console.warn('Supabase key not configured - showing demo works');
+            showDemoWorks();
+            return;
+        }
+
+        try {
+            const data = await sbFetch('works?select=*,media(*)&visible=eq.true&order=created_at.desc');
+            allWorks = data;
+            buildFilters();
+            renderWorks();
+        } catch(e) {
+            console.error('Supabase error:', e);
+            showDemoWorks();
+        }
+    }
+
+    // Demo works for testing when Supabase is not configured
+    function showDemoWorks() {
+        allWorks = [
+            {
+                id: 1,
+                title: 'تصميم بوستر فعالية',
+                description: 'بوستر احترافي لتغطية فعالية طلابية في كلية الزراعة',
+                type: 'design',
+                tools: 'Photoshop, Illustrator',
+                video_link: 'https://example.com',
+                media: [
+                    { data: 'https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=600', file_name: 'poster1.jpg', file_type: 'image/jpeg' }
+                ]
+            },
+            {
+                id: 2,
+                title: 'مونتاج فيديو تغطية',
+                description: 'فيديو تغطية كامل لفعالية اتحاد طلاب تحيا مصر',
+                type: 'video',
+                tools: 'Premiere Pro, After Effects',
+                media: [
+                    { data: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4', file_name: 'video1.mp4', file_type: 'video/mp4' }
+                ]
+            },
+            {
+                id: 3,
+                title: 'هوية بصرية كاملة',
+                description: 'تصميم شعار وهوية بصرية لنادي طلابي',
+                type: 'brand',
+                tools: 'Illustrator, Figma',
+                media: [
+                    { data: 'https://images.unsplash.com/photo-1626785774573-4b799315345d?w=600', file_name: 'brand1.jpg', file_type: 'image/jpeg' },
+                    { data: 'https://images.unsplash.com/photo-1561070791-2526d30994b5?w=600', file_name: 'brand2.jpg', file_type: 'image/jpeg' }
+                ]
+            },
+            {
+                id: 4,
+                title: 'تقرير PDF',
+                description: 'تقرير سنوي للاتحاد الطلابي بتصميم احترافي',
+                type: 'design',
+                tools: 'InDesign, Photoshop',
+                video_link: 'https://example.com/report',
+                media: [
+                    { data: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf', file_name: 'report.pdf', file_type: 'application/pdf' }
+                ]
+            },
+            {
+                id: 5,
+                title: 'موشن جرافيك',
+                description: 'مقدمة فيديو موشن جرافيك للقناة',
+                type: 'motion',
+                tools: 'After Effects',
+                media: [
+                    { data: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4', file_name: 'motion1.mp4', file_type: 'video/mp4' }
+                ]
+            }
+        ];
+        buildFilters();
+        renderWorks();
+    }
     </script>
 </body>
 </html>
