@@ -1258,20 +1258,33 @@
             const media = lbWork.media;
             const item = media[lbIdx];
             const isVideo = item.file_type && item.file_type.startsWith('video');
+            const isPDF = item.file_type === 'application/pdf';
+            const isWord = item.file_name && (item.file_name.endsWith('.doc') || item.file_name.endsWith('.docx'));
+            const isDoc = isPDF || isWord;
             const container = document.getElementById('lbMedia');
             const prev = document.getElementById('lbPrev');
             const next = document.getElementById('lbNext');
 
             // clear old media
             Array.from(container.children).forEach(c => {
-                if (c.tagName === 'IMG' || c.tagName === 'VIDEO') c.remove();
+                if (['IMG','VIDEO','DIV','A'].includes(c.tagName) && !c.id) c.remove();
             });
 
-            const el = isVideo ? document.createElement('video') : document.createElement('img');
-            el.src = item.data;
-            if (isVideo) { el.controls = true; el.autoplay = true; }
-            el.style.cssText = 'width:100%;height:100%;object-fit:contain;';
-            container.insertBefore(el, prev);
+            if (isDoc) {
+                const docDiv = document.createElement('div');
+                docDiv.style.cssText = 'width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;background:#020617;';
+                docDiv.innerHTML = `
+                    <span style="font-size:72px;">${isPDF ? '📄' : '📝'}</span>
+                    <span style="color:white;font-size:16px;font-weight:700;">${item.file_name || (isPDF ? 'ملف PDF' : 'ملف Word')}</span>
+                    <a href="${item.data}" download="${item.file_name || 'file'}" style="background:linear-gradient(135deg,#6c63ff,#8b5cf6);color:white;padding:14px 32px;border-radius:50px;text-decoration:none;font-weight:700;font-size:15px;">⬇️ تحميل الملف</a>`;
+                container.insertBefore(docDiv, prev);
+            } else {
+                const el = isVideo ? document.createElement('video') : document.createElement('img');
+                el.src = item.data;
+                if (isVideo) { el.controls = true; el.autoplay = true; }
+                el.style.cssText = 'width:100%;height:100%;object-fit:contain;';
+                container.insertBefore(el, prev);
+            }
 
             prev.style.display = media.length > 1 ? 'block' : 'none';
             next.style.display = media.length > 1 ? 'block' : 'none';
