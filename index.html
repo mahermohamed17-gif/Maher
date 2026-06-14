@@ -1738,6 +1738,11 @@ const T = {
         }
 
         async function loadPortfolio() {
+            const grid = document.getElementById('portfolioGrid');
+            grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:#64748b;">
+                <i class="fas fa-spinner fa-spin" style="font-size:36px;margin-bottom:16px;display:block;"></i>
+                <p style="font-size:15px;">جاري تحميل الأعمال...</p>
+            </div>`;
             try {
                 const data = await sbFetch('works?select=*,media(*)&visible=eq.true&order=created_at.desc');
                 allWorks = data;
@@ -1745,6 +1750,12 @@ const T = {
                 renderWorks();
             } catch(e) {
                 console.error('Supabase error:', e);
+                document.getElementById('portfolioFilters').style.display = 'none';
+                grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:#64748b;">
+                    <i class="fas fa-wifi" style="font-size:48px;margin-bottom:16px;display:block;"></i>
+                    <p style="font-size:16px;margin-bottom:20px;">حصل خطأ في الاتصال، تأكد من الإنترنت وحاول تاني</p>
+                    <button onclick="loadPortfolio()" style="padding:12px 32px;border-radius:50px;border:none;background:var(--primary);color:white;font-family:'Cairo',sans-serif;font-weight:700;font-size:14px;cursor:pointer;">إعادة المحاولة</button>
+                </div>`;
             }
         }
 
