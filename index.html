@@ -1214,18 +1214,42 @@
                 const realIdx = allWorks.indexOf(w);
                 const first = w.media && w.media[0];
                 const isVideo = first && first.file_type && first.file_type.startsWith('video');
-                const icon = typeIcons[w.type] || 'fas fa-image';
+                const isPDF = first && first.file_type === 'application/pdf';
+                const isWord = first && first.file_name && (first.file_name.endsWith('.doc') || first.file_name.endsWith('.docx'));
+                const isDoc = isPDF || isWord;
+                const hasLink = !!w.video_link;
+
+                // Thumbnail HTML
+                let thumbHTML = '';
+                if (first) {
+                    if (isDoc) {
+                        thumbHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;background:#1a1a2e;gap:8px;">
+                            <span style="font-size:52px;">${isPDF ? '📄' : '📝'}</span>
+                            <span style="font-size:11px;color:#64748b;max-width:80%;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${first.file_name || ''}</span>
+                        </div>`;
+                    } else if (isVideo) {
+                        thumbHTML = `<video src="${first.data}" muted loop style="width:100%;height:100%;object-fit:cover;"></video>`;
+                    } else {
+                        thumbHTML = `<img src="${first.data}" style="width:100%;height:100%;object-fit:cover;" loading="lazy" />`;
+                    }
+                } else if (hasLink) {
+                    thumbHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;background:#1a1a2e;gap:8px;">
+                        <span style="font-size:52px;">🔗</span>
+                        <span style="font-size:12px;color:#6c63ff;font-weight:700;">رابط خارجي</span>
+                    </div>`;
+                } else {
+                    thumbHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:40px;">🖼️</div>`;
+                }
+
                 return `
                     <div class="portfolio-item" onclick="openLB(${realIdx})" style="cursor:pointer;">
                         <div class="portfolio-img" style="padding:0;overflow:hidden;position:relative;">
-                            ${isVideo
-                                ? `<video src="${first.data}" muted loop style="width:100%;height:100%;object-fit:cover;"></video>`
-                                : `<img src="${first.data}" style="width:100%;height:100%;object-fit:cover;" loading="lazy" />`
-                            }
-                            ${w.media.length > 1 ? `<span style="position:absolute;top:10px;left:10px;background:rgba(0,0,0,0.65);color:white;font-size:12px;padding:4px 10px;border-radius:20px;backdrop-filter:blur(4px);">📎 ${w.media.length}</span>` : ''}
+                            ${thumbHTML}
+                            ${w.media && w.media.length > 1 ? `<span style="position:absolute;top:10px;left:10px;background:rgba(0,0,0,0.65);color:white;font-size:12px;padding:4px 10px;border-radius:20px;backdrop-filter:blur(4px);">📎 ${w.media.length}</span>` : ''}
                             <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.7) 0%,transparent 50%);opacity:0;transition:opacity 0.3s;"
-                                onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0"
-                                ><span style="position:absolute;bottom:16px;right:16px;color:white;font-weight:700;font-size:14px;">عرض التفاصيل ←</span></div>
+                                onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0">
+                                <span style="position:absolute;bottom:16px;right:16px;color:white;font-weight:700;font-size:14px;">عرض التفاصيل ←</span>
+                            </div>
                         </div>
                         <div class="portfolio-info">
                             <h3>${w.title}</h3>
@@ -1234,6 +1258,7 @@
                                 <span class="tag">${typeLabels[w.type] || w.type}</span>
                                 ${w.tools ? w.tools.split(',').slice(0,2).map(t => `<span class="tag">${t.trim()}</span>`).join('') : ''}
                             </div>
+                            ${hasLink ? `<a href="${w.video_link}" target="_blank" onclick="event.stopPropagation()" style="display:inline-block;margin-top:10px;background:rgba(108,99,255,0.15);border:1px solid rgba(108,99,255,0.3);color:#6c63ff;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;text-decoration:none;">🔗 فتح الرابط</a>` : ''}
                         </div>
                     </div>`;
             }).join('');
@@ -1249,7 +1274,34 @@
                 `<span class="tag">${typeLabels[lbWork.type] || lbWork.type}</span>`,
                 ...(lbWork.tools ? lbWork.tools.split(',').map(t => `<span class="tag">${t.trim()}</span>`) : [])
             ].join('');
-            renderLBMedia();
+            // Add link button if exists
+            const existingLink = document.getElementById('lbExternalLink');
+            if (existingLink) existingLink.remove();
+            if (lbWork.video_link) {
+                const linkBtn = document.createElement('a');
+                linkBtn.id = 'lbExternalLink';
+                linkBtn.href = lbWork.video_link;
+                linkBtn.target = '_blank';
+                linkBtn.textContent = '🔗 فتح الرابط الخارجي';
+                linkBtn.style.cssText = 'display:inline-block;margin-top:14px;background:linear-gradient(135deg,#6c63ff,#8b5cf6);color:white;padding:10px 24px;border-radius:50px;text-decoration:none;font-weight:700;font-size:14px;';
+                document.getElementById('lbTags').after(linkBtn);
+            }
+            if (lbWork.media && lbWork.media.length > 0) {
+                renderLBMedia();
+            } else {
+                // No media - show link only
+                const container = document.getElementById('lbMedia');
+                Array.from(container.children).forEach(c => { if (!c.id) c.remove(); });
+                const div = document.createElement('div');
+                div.style.cssText = 'width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:#020617;';
+                div.innerHTML = `<span style="font-size:64px;">🔗</span>
+                    <span style="color:white;font-size:16px;font-weight:700;">${lbWork.title}</span>
+                    <a href="${lbWork.video_link}" target="_blank" style="background:linear-gradient(135deg,#6c63ff,#8b5cf6);color:white;padding:14px 32px;border-radius:50px;text-decoration:none;font-weight:700;font-size:15px;">🔗 فتح الرابط</a>`;
+                container.appendChild(div);
+                document.getElementById('lbDots').innerHTML = '';
+                document.getElementById('lbPrev').style.display = 'none';
+                document.getElementById('lbNext').style.display = 'none';
+            }
             document.getElementById('lightbox').style.display = 'flex';
             document.body.style.overflow = 'hidden';
         }
