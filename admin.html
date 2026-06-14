@@ -165,13 +165,35 @@
           <label>الأدوات المستخدمة (اختياري)</label>
           <input type="text" id="workTools" placeholder="مثلاً: Photoshop, Premiere, After Effects" />
         </div>
+
+        <!-- VIDEO LINK -->
+        <div class="form-group" style="margin-bottom:16px">
+          <label>🎬 لينك فيديو خارجي (اختياري — لو الفيديو أكبر من 100MB)</label>
+          <input type="url" id="videoLink" placeholder="https://youtube.com/... أو Google Drive أو Vimeo" />
+          <small style="color:var(--muted);font-size:11px;margin-top:4px;">للفيديوهات الكبيرة — ارفع على YouTube أو Drive وحط اللينك هنا</small>
+        </div>
+
+        <!-- UPLOAD ZONE - صور وفيديو صغير -->
+        <label style="font-size:13px;color:var(--muted);font-weight:600;display:block;margin-bottom:8px;">📁 رفع صور أو فيديو (حد أقصى 100MB للملف)</label>
         <div class="upload-zone" id="uploadZone">
           <input type="file" id="fileInput" multiple accept="image/*,video/*" onchange="handleFiles(this.files)" />
           <div class="upload-icon">📁</div>
           <p><strong>اسحب الملفات هنا</strong> أو اضغط للاختيار</p>
-          <p style="margin-top:8px;font-size:12px">صور (JPG, PNG, GIF) وفيديو (MP4, MOV)</p>
+          <p style="margin-top:8px;font-size:12px">صور (JPG, PNG, GIF) وفيديو (MP4, MOV) — حد أقصى <strong style="color:var(--accent2);">100MB</strong> للملف</p>
         </div>
         <div class="preview-grid" id="previewGrid"></div>
+
+        <!-- CV UPLOAD -->
+        <div style="border:2px dashed var(--border);border-radius:14px;padding:24px;margin-bottom:16px;position:relative;text-align:center;transition:all 0.2s;" id="cvZone">
+          <input type="file" id="cvInput" accept=".pdf,.doc,.docx" onchange="handleCV(this.files[0])" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;" />
+          <div style="font-size:36px;margin-bottom:8px;">📄</div>
+          <p style="color:var(--muted);font-size:14px;"><strong style="color:var(--accent);">رفع CV</strong> (PDF أو Word) — اختياري</p>
+          <div id="cvPreview" style="margin-top:10px;display:none;">
+            <span id="cvName" style="color:var(--success);font-size:13px;font-weight:700;"></span>
+            <button onclick="removeCV(event)" style="background:rgba(248,113,113,0.2);border:1px solid rgba(248,113,113,0.3);color:var(--danger);border-radius:8px;padding:4px 10px;cursor:pointer;font-size:12px;margin-right:10px;">✕ إزالة</button>
+          </div>
+        </div>
+
         <div class="progress-bar" id="progressBar"><div class="progress-fill" id="progressFill"></div></div>
         <button class="btn-upload" id="uploadBtn" onclick="saveWork()">
           <span>⬆️</span> رفع العمل على البورتفوليو
@@ -305,9 +327,37 @@ function switchTab(tab, btn) {
 }
 
 // FILES
+const MAX_SIZE = 100 * 1024 * 1024; // 100MB
+let cvFile = null;
+
 function handleFiles(files) {
-  Array.from(files).forEach(f => selectedFiles.push(f));
+  let rejected = 0;
+  Array.from(files).forEach(f => {
+    if (f.size > MAX_SIZE) {
+      rejected++;
+    } else {
+      selectedFiles.push(f);
+    }
+  });
+  if (rejected > 0) {
+    showToast(`⚠️ ${rejected} ملف أكبر من 100MB اتشال — ارفع الفيديوهات الكبيرة كلينك`, '#f59e0b');
+  }
   renderPreviews();
+}
+
+function handleCV(file) {
+  if (!file) return;
+  if (file.size > MAX_SIZE) { showToast('❌ الملف أكبر من 50MB', '#f87171'); return; }
+  cvFile = file;
+  document.getElementById('cvName').textContent = '✅ ' + file.name;
+  document.getElementById('cvPreview').style.display = 'block';
+}
+
+function removeCV(e) {
+  e.stopPropagation();
+  cvFile = null;
+  document.getElementById('cvInput').value = '';
+  document.getElementById('cvPreview').style.display = 'none';
 }
 
 function renderPreviews() {
@@ -362,6 +412,14 @@ async function saveWork() {
   document.getElementById('progressBar').style.display = 'block';
 
   try {
+    // CV to base64
+    let cvData = null;
+    if (cvFile) {
+      cvData = await fileToBase64(cvFile);
+    }
+
+    const videoLink = document.getElementById('videoLink').value.trim();
+
     // 1. Insert work
     const workData = await sbFetch('works', {
       method: 'POST',
@@ -370,6 +428,8 @@ async function saveWork() {
         type: document.getElementById('workType').value,
         description: document.getElementById('workDesc').value.trim(),
         tools: document.getElementById('workTools').value.trim(),
+        video_link: videoLink || null,
+        cv_url: cvData || null,
         visible: true
       })
     });
@@ -420,6 +480,10 @@ function resetForm() {
   document.getElementById('workDesc').value = '';
   document.getElementById('workTools').value = '';
   document.getElementById('workType').value = 'design';
+  document.getElementById('videoLink').value = '';
+  document.getElementById('cvInput').value = '';
+  document.getElementById('cvPreview').style.display = 'none';
+  cvFile = null;
   selectedFiles = [];
   renderPreviews();
 }
@@ -467,6 +531,10 @@ function renderWorks() {
           <h3>${w.title}</h3>
           ${w.description ? `<p>${w.description}</p>` : ''}
           ${w.tools ? `<p style="margin-top:6px;color:var(--accent);font-size:11px">🛠 ${w.tools}</p>` : ''}
+          <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
+            ${w.video_link ? `<span style="background:rgba(255,101,132,0.15);color:var(--accent2);border-radius:6px;padding:3px 8px;font-size:11px;">🎬 لينك فيديو</span>` : ''}
+            ${w.cv_url ? `<span style="background:rgba(74,222,128,0.15);color:var(--success);border-radius:6px;padding:3px 8px;font-size:11px;">📄 CV مرفق</span>` : ''}
+          </div>
         </div>
         <div class="work-actions">
           <button class="btn-toggle" onclick="toggleWork(${i})">${w.visible ? '🙈 إخفاء' : '👁 إظهار'}</button>
