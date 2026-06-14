@@ -6,7 +6,6 @@
     <title>ماهر أبو دبش | مصمم جرافيك & إعلامي</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
             --primary: #6366f1;
@@ -774,210 +773,6 @@
                 transform: rotate(360deg);
             }
         }
-
-        /* Portfolio Filters */
-        .portfolio-filters {
-            display: flex;
-            justify-content: center;
-            gap: 0.8rem;
-            flex-wrap: wrap;
-            margin-bottom: 3rem;
-        }
-
-        .filter-btn {
-            padding: 0.6rem 1.6rem;
-            border-radius: 50px;
-            border: 1px solid rgba(255,255,255,0.1);
-            background: var(--glass);
-            color: var(--light);
-            font-family: 'Cairo', sans-serif;
-            font-size: 0.95rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .filter-btn:hover {
-            border-color: rgba(99, 102, 241, 0.4);
-            color: var(--primary);
-        }
-
-        .filter-btn.active {
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            border-color: transparent;
-            color: white;
-            box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3);
-        }
-
-        /* Portfolio media (image/video) */
-        .portfolio-item {
-            cursor: pointer;
-        }
-
-        .portfolio-img img,
-        .portfolio-img video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-        }
-
-        .portfolio-img::after {
-            content: none;
-        }
-
-        .media-count-badge {
-            position: absolute;
-            top: 12px;
-            left: 12px;
-            background: rgba(2, 6, 23, 0.75);
-            backdrop-filter: blur(4px);
-            color: var(--light);
-            font-size: 0.8rem;
-            font-weight: 700;
-            padding: 0.25rem 0.7rem;
-            border-radius: 50px;
-            z-index: 2;
-        }
-
-        .play-overlay {
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(2, 6, 23, 0.25);
-            font-size: 2.5rem;
-            color: white;
-            z-index: 1;
-        }
-
-        .portfolio-loading,
-        .portfolio-empty {
-            grid-column: 1 / -1;
-            text-align: center;
-            color: var(--gray);
-            padding: 3rem 1rem;
-            font-size: 1.05rem;
-        }
-
-        /* Lightbox */
-        .lightbox-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(2, 6, 23, 0.92);
-            backdrop-filter: blur(8px);
-            z-index: 2000;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            padding: 2rem;
-        }
-
-        .lightbox-overlay.active {
-            display: flex;
-        }
-
-        .lightbox-box {
-            max-width: 1000px;
-            width: 100%;
-            max-height: 90vh;
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        .lightbox-media {
-            position: relative;
-            width: 100%;
-            max-height: 65vh;
-            background: var(--darker);
-            border-radius: 16px;
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border: 1px solid rgba(255,255,255,0.05);
-        }
-
-        .lightbox-media img,
-        .lightbox-media video {
-            max-width: 100%;
-            max-height: 65vh;
-            object-fit: contain;
-        }
-
-        .lightbox-nav {
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 46px;
-            height: 46px;
-            border-radius: 50%;
-            background: rgba(2, 6, 23, 0.6);
-            border: 1px solid rgba(255,255,255,0.1);
-            color: white;
-            font-size: 1.1rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .lightbox-nav:hover {
-            background: var(--primary);
-        }
-
-        .lightbox-prev { right: 16px; }
-        .lightbox-next { left: 16px; }
-
-        .lightbox-close {
-            position: absolute;
-            top: -45px;
-            left: 0;
-            font-size: 1.5rem;
-            color: var(--light);
-            background: var(--card-bg);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-        }
-
-        .lightbox-info {
-            text-align: center;
-        }
-
-        .lightbox-info h3 {
-            font-size: 1.4rem;
-            font-weight: 800;
-            margin-bottom: 0.4rem;
-        }
-
-        .lightbox-info p {
-            color: var(--gray);
-            font-size: 0.95rem;
-            max-width: 700px;
-            margin: 0 auto;
-        }
-
-        .lightbox-counter {
-            color: var(--primary);
-            font-size: 0.85rem;
-            font-weight: 700;
-            margin-top: 0.6rem;
-        }
-
-        @media (max-width: 768px) {
-            .lightbox-nav { width: 38px; height: 38px; font-size: 1rem; }
-            .lightbox-prev { right: 6px; }
-            .lightbox-next { left: 6px; }
-        }
     </style>
 </head>
 <body>
@@ -1237,33 +1032,30 @@
     <section id="portfolio" class="reveal">
         <div class="section-title">
             <h2>أعمالي</h2>
-            <p>نماذج من الشغل اللي عملته</p>
+            <p id="portfolioSubtitle">نماذج من الشغل اللي عملته</p>
         </div>
-        <div class="portfolio-filters" id="portfolioFilters">
-            <button class="filter-btn active" data-type="all" onclick="setFilter('all', this)">الكل</button>
-            <button class="filter-btn" data-type="design" onclick="setFilter('design', this)">تصميم جرافيك</button>
-            <button class="filter-btn" data-type="video" onclick="setFilter('video', this)">مونتاج فيديو</button>
-            <button class="filter-btn" data-type="photo" onclick="setFilter('photo', this)">تصوير</button>
-            <button class="filter-btn" data-type="motion" onclick="setFilter('motion', this)">موشن جرافيك</button>
-            <button class="filter-btn" data-type="brand" onclick="setFilter('brand', this)">هوية بصرية</button>
-        </div>
+
+        <!-- Filter Buttons -->
+        <div id="portfolioFilters" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:2rem;"></div>
+
         <div class="portfolio-grid" id="portfolioGrid">
-            <div class="portfolio-loading">جاري تحميل الأعمال...</div>
+            <!-- يتحط هنا الأعمال تلقائياً -->
         </div>
     </section>
 
     <!-- Lightbox -->
-    <div class="lightbox-overlay" id="lightbox" onclick="closeLightboxOnOverlay(event)">
-        <div class="lightbox-box">
-            <div class="lightbox-media" id="lightboxMedia">
-                <div class="lightbox-close" onclick="closeLightbox()"><i class="fas fa-times"></i></div>
-                <div class="lightbox-nav lightbox-prev" onclick="lightboxStep(1)"><i class="fas fa-chevron-right"></i></div>
-                <div class="lightbox-nav lightbox-next" onclick="lightboxStep(-1)"><i class="fas fa-chevron-left"></i></div>
+    <div id="lightbox" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:9999;align-items:center;justify-content:center;padding:20px;">
+        <div style="background:#1e293b;border-radius:20px;max-width:860px;width:100%;max-height:90vh;overflow-y:auto;position:relative;">
+            <button onclick="closeLB()" style="position:absolute;top:14px;left:14px;background:rgba(255,255,255,0.1);border:none;border-radius:50%;width:40px;height:40px;color:white;font-size:20px;cursor:pointer;z-index:10;">✕</button>
+            <div id="lbMedia" style="width:100%;aspect-ratio:16/9;background:#020617;border-radius:20px 20px 0 0;overflow:hidden;position:relative;display:flex;align-items:center;justify-content:center;">
+                <button id="lbPrev" onclick="lbNav(-1)" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.6);border:none;color:white;font-size:28px;width:44px;height:44px;border-radius:50%;cursor:pointer;">›</button>
+                <button id="lbNext" onclick="lbNav(1)" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.6);border:none;color:white;font-size:28px;width:44px;height:44px;border-radius:50%;cursor:pointer;">‹</button>
             </div>
-            <div class="lightbox-info">
-                <h3 id="lightboxTitle"></h3>
-                <p id="lightboxDesc"></p>
-                <div class="lightbox-counter" id="lightboxCounter"></div>
+            <div id="lbDots" style="display:flex;gap:8px;justify-content:center;padding:14px;"></div>
+            <div style="padding:20px 28px 28px;">
+                <h2 id="lbTitle" style="font-size:20px;font-weight:900;margin-bottom:8px;"></h2>
+                <p id="lbDesc" style="color:#64748b;line-height:1.7;font-size:14px;"></p>
+                <div id="lbTags" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;"></div>
             </div>
         </div>
     </div>
@@ -1302,6 +1094,7 @@
         <div class="logo">ماهر محمد</div>
         <p>© 2026 ماهر محمد. جميع الحقوق محفوظة.</p>
         <p style="margin-top: 0.5rem; font-size: 0.9rem;">صُنع بـ <i class="fas fa-heart" style="color: #ef4444;"></i> وشغف</p>
+        <p style="margin-top: 0.5rem; font-size: 0.8rem;"><a href="admin.html" style="color:#6366f1;text-decoration:none;opacity:0.5;">⚙️ لوحة التحكم</a></p>
     </footer>
 
     <script>
@@ -1357,163 +1150,180 @@
             }
         });
 
-        // =====================
-        // Supabase Portfolio
-        // =====================
-        const SUPABASE_URL = 'https://rxhfflxcxmnkhzqvcnxi.supabase.co';
-        const SUPABASE_ANON_KEY = 'sb_publishable__s2TWfwgLsK6KBDW-C2V5Q_rZQW2oBZ';
-        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
+        // =============================================
+        // PORTFOLIO DYNAMIC LOADER - من لوحة التحكم
+        // =============================================
         const typeLabels = {
             design: 'تصميم جرافيك',
             video: 'مونتاج فيديو',
-            photo: 'تصوير فوتوغرافي',
+            photo: 'تصوير',
             motion: 'موشن جرافيك',
             brand: 'هوية بصرية'
         };
 
+        const typeIcons = {
+            design: 'fas fa-palette',
+            video: 'fas fa-video',
+            photo: 'fas fa-camera',
+            motion: 'fas fa-star',
+            brand: 'fas fa-paint-brush'
+        };
+
         let allWorks = [];
         let currentFilter = 'all';
-        let currentMediaItems = [];
-        let lightboxIndex = 0;
+        let lbWork = null, lbIdx = 0;
 
-        function escapeHtml(str) {
-            const div = document.createElement('div');
-            div.textContent = str || '';
-            return div.innerHTML;
+        function buildFilters() {
+            const bar = document.getElementById('portfolioFilters');
+            if (allWorks.length === 0) { bar.style.display = 'none'; return; }
+            bar.style.display = 'flex';
+            const types = ['all', ...new Set(allWorks.map(w => w.type))];
+            bar.innerHTML = types.map(t => `
+                <button onclick="filterBy('${t}', this)" style="
+                    padding:8px 20px;border-radius:50px;border:2px solid ${t === currentFilter ? 'var(--primary)' : 'rgba(255,255,255,0.15)'};
+                    background:${t === currentFilter ? 'var(--primary)' : 'transparent'};
+                    color:${t === currentFilter ? 'white' : 'var(--light)'};
+                    font-family:'Cairo',sans-serif;font-weight:700;font-size:14px;cursor:pointer;transition:all 0.3s;
+                ">${t === 'all' ? 'الكل' : (typeLabels[t] || t)}</button>
+            `).join('');
         }
 
-        async function loadPortfolio() {
-            const grid = document.getElementById('portfolioGrid');
-            try {
-                const { data, error } = await supabaseClient
-                    .from('works')
-                    .select('*')
-                    .eq('visible', true)
-                    .order('created_at', { ascending: false });
-
-                if (error) throw error;
-
-                allWorks = data || [];
-                renderPortfolio();
-            } catch (err) {
-                console.error(err);
-                grid.innerHTML = '<div class="portfolio-empty">حدث خطأ أثناء تحميل الأعمال، حاول تحديث الصفحة.</div>';
-            }
-        }
-
-        function setFilter(type, btn) {
+        function filterBy(type, btn) {
             currentFilter = type;
-            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            renderPortfolio();
+            buildFilters();
+            renderWorks();
         }
 
-        function renderPortfolio() {
+        function renderWorks() {
             const grid = document.getElementById('portfolioGrid');
-            const filtered = currentFilter === 'all'
-                ? allWorks
-                : allWorks.filter(w => w.type === currentFilter);
+            const filtered = currentFilter === 'all' ? allWorks : allWorks.filter(w => w.type === currentFilter);
 
             if (filtered.length === 0) {
-                grid.innerHTML = '<div class="portfolio-empty">لا توجد أعمال في هذا القسم حاليًا، تابعوني قريبًا!</div>';
+                document.getElementById('portfolioSubtitle').textContent = 'نماذج من الشغل اللي عملته';
+                grid.innerHTML = `
+                    <div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:#64748b;">
+                        <i class="fas fa-image" style="font-size:48px;margin-bottom:16px;display:block;"></i>
+                        <p style="font-size:16px;">${allWorks.length === 0 ? 'الأعمال هتظهر هنا بعد ما ترفعها من لوحة التحكم' : 'مفيش أعمال في هذه الفئة'}</p>
+                    </div>`;
                 return;
             }
 
-            grid.innerHTML = filtered.map(w => {
-                const media = w.media || [];
-                const first = media[0] || {};
-                const isVideo = first.type === 'video';
-                const toolsArr = (w.tools || '').split(',').map(t => t.trim()).filter(Boolean);
-                const workId = w.id;
+            document.getElementById('portfolioSubtitle').textContent = `${filtered.length} عمل متاح`;
 
+            grid.innerHTML = filtered.map((w, i) => {
+                const realIdx = allWorks.indexOf(w);
+                const first = w.media && w.media[0];
+                const isVideo = first && first.file_type && first.file_type.startsWith('video');
+                const icon = typeIcons[w.type] || 'fas fa-image';
                 return `
-                    <div class="portfolio-item" onclick="openLightbox(${workId})">
-                        <div class="portfolio-img">
+                    <div class="portfolio-item" onclick="openLB(${realIdx})" style="cursor:pointer;">
+                        <div class="portfolio-img" style="padding:0;overflow:hidden;position:relative;">
                             ${isVideo
-                                ? `<video src="${first.url}" muted playsinline></video><div class="play-overlay"><i class="fas fa-play-circle"></i></div>`
-                                : `<img src="${first.url}" alt="${escapeHtml(w.title)}" loading="lazy">`}
-                            ${media.length > 1 ? `<div class="media-count-badge"><i class="fas fa-images"></i> ${media.length}</div>` : ''}
+                                ? `<video src="${first.data}" muted loop style="width:100%;height:100%;object-fit:cover;"></video>`
+                                : `<img src="${first.data}" style="width:100%;height:100%;object-fit:cover;" loading="lazy" />`
+                            }
+                            ${w.media.length > 1 ? `<span style="position:absolute;top:10px;left:10px;background:rgba(0,0,0,0.65);color:white;font-size:12px;padding:4px 10px;border-radius:20px;backdrop-filter:blur(4px);">📎 ${w.media.length}</span>` : ''}
+                            <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.7) 0%,transparent 50%);opacity:0;transition:opacity 0.3s;"
+                                onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0"
+                                ><span style="position:absolute;bottom:16px;right:16px;color:white;font-weight:700;font-size:14px;">عرض التفاصيل ←</span></div>
                         </div>
                         <div class="portfolio-info">
-                            <h3>${escapeHtml(w.title)}</h3>
-                            ${w.description ? `<p>${escapeHtml(w.description)}</p>` : ''}
+                            <h3>${w.title}</h3>
+                            ${w.description ? `<p>${w.description.length > 80 ? w.description.slice(0,80)+'...' : w.description}</p>` : ''}
                             <div class="portfolio-tags">
-                                <span class="tag">${typeLabels[w.type] || 'أخرى'}</span>
-                                ${toolsArr.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}
+                                <span class="tag">${typeLabels[w.type] || w.type}</span>
+                                ${w.tools ? w.tools.split(',').slice(0,2).map(t => `<span class="tag">${t.trim()}</span>`).join('') : ''}
                             </div>
                         </div>
-                    </div>
-                `;
+                    </div>`;
             }).join('');
         }
 
-        // Lightbox
-        function openLightbox(workId) {
-            const work = allWorks.find(w => w.id === workId);
-            if (!work) return;
-
-            currentMediaItems = work.media || [];
-            lightboxIndex = 0;
-
-            document.getElementById('lightboxTitle').textContent = work.title || '';
-            document.getElementById('lightboxDesc').textContent = work.description || '';
-
-            renderLightboxMedia();
-            document.getElementById('lightbox').classList.add('active');
+        // LIGHTBOX
+        function openLB(idx) {
+            lbWork = allWorks[idx];
+            lbIdx = 0;
+            document.getElementById('lbTitle').textContent = lbWork.title;
+            document.getElementById('lbDesc').textContent = lbWork.description || '';
+            document.getElementById('lbTags').innerHTML = [
+                `<span class="tag">${typeLabels[lbWork.type] || lbWork.type}</span>`,
+                ...(lbWork.tools ? lbWork.tools.split(',').map(t => `<span class="tag">${t.trim()}</span>`) : [])
+            ].join('');
+            renderLBMedia();
+            document.getElementById('lightbox').style.display = 'flex';
             document.body.style.overflow = 'hidden';
         }
 
-        function renderLightboxMedia() {
-            const container = document.getElementById('lightboxMedia');
-            const item = currentMediaItems[lightboxIndex];
+        function renderLBMedia() {
+            const media = lbWork.media;
+            const item = media[lbIdx];
+            const isVideo = item.file_type && item.file_type.startsWith('video');
+            const container = document.getElementById('lbMedia');
+            const prev = document.getElementById('lbPrev');
+            const next = document.getElementById('lbNext');
 
-            // Remove old media element if present
-            const oldMedia = container.querySelector('img, video');
-            if (oldMedia) oldMedia.remove();
+            // clear old media
+            Array.from(container.children).forEach(c => {
+                if (c.tagName === 'IMG' || c.tagName === 'VIDEO') c.remove();
+            });
 
-            const el = document.createElement(item.type === 'video' ? 'video' : 'img');
-            if (item.type === 'video') {
-                el.src = item.url;
-                el.controls = true;
-                el.autoplay = true;
-            } else {
-                el.src = item.url;
-                el.alt = '';
-            }
-            container.appendChild(el);
+            const el = isVideo ? document.createElement('video') : document.createElement('img');
+            el.src = item.data;
+            if (isVideo) { el.controls = true; el.autoplay = true; }
+            el.style.cssText = 'width:100%;height:100%;object-fit:contain;';
+            container.insertBefore(el, prev);
 
-            const nav = container.querySelectorAll('.lightbox-nav');
-            nav.forEach(n => n.style.display = currentMediaItems.length > 1 ? 'flex' : 'none');
+            prev.style.display = media.length > 1 ? 'block' : 'none';
+            next.style.display = media.length > 1 ? 'block' : 'none';
 
-            document.getElementById('lightboxCounter').textContent =
-                currentMediaItems.length > 1 ? `${lightboxIndex + 1} / ${currentMediaItems.length}` : '';
+            document.getElementById('lbDots').innerHTML = media.map((_, i) =>
+                `<div onclick="lbGoto(${i})" style="width:8px;height:8px;border-radius:50%;background:${i===lbIdx?'var(--primary)':'rgba(255,255,255,0.3)'};cursor:pointer;transition:background 0.2s;"></div>`
+            ).join('');
         }
 
-        function lightboxStep(dir) {
-            if (currentMediaItems.length <= 1) return;
-            lightboxIndex = (lightboxIndex + dir + currentMediaItems.length) % currentMediaItems.length;
-            renderLightboxMedia();
+        function lbNav(dir) {
+            lbIdx = (lbIdx + dir + lbWork.media.length) % lbWork.media.length;
+            renderLBMedia();
         }
 
-        function closeLightbox() {
-            const container = document.getElementById('lightboxMedia');
-            const media = container.querySelector('img, video');
-            if (media && media.tagName === 'VIDEO') media.pause();
-            document.getElementById('lightbox').classList.remove('active');
+        function lbGoto(i) { lbIdx = i; renderLBMedia(); }
+
+        function closeLB() {
+            document.getElementById('lightbox').style.display = 'none';
             document.body.style.overflow = '';
         }
 
-        function closeLightboxOnOverlay(e) {
-            if (e.target.id === 'lightbox') closeLightbox();
+        document.getElementById('lightbox').addEventListener('click', function(e) {
+            if (e.target === this) closeLB();
+        });
+
+        // =============================================
+        // SUPABASE CONFIG
+        // =============================================
+        const SUPABASE_URL = 'https://vkvssmoktvdrtzddylmp.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_uJ8cBUKaZCMKfVnsuDzNgg_2npCn-OO';
+
+        async function sbFetch(path) {
+            const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+                headers: {
+                    'apikey': SUPABASE_KEY,
+                    'Authorization': `Bearer ${SUPABASE_KEY}`
+                }
+            });
+            const text = await res.text();
+            return text ? JSON.parse(text) : [];
         }
 
-        document.addEventListener('keydown', (e) => {
-            if (!document.getElementById('lightbox').classList.contains('active')) return;
-            if (e.key === 'Escape') closeLightbox();
-            if (e.key === 'ArrowLeft') lightboxStep(1);
-            if (e.key === 'ArrowRight') lightboxStep(-1);
-        });
+        async function loadPortfolio() {
+            try {
+                const data = await sbFetch('works?select=*,media(*)&visible=eq.true&order=created_at.desc');
+                allWorks = data;
+                buildFilters();
+                renderWorks();
+            } catch(e) {
+                console.error('Supabase error:', e);
+            }
+        }
 
         loadPortfolio();
     </script>
