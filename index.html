@@ -1366,8 +1366,31 @@ function openLB(idx) {
         ...(lbWork.tools ? lbWork.tools.split(',').map(t => `<span class="tag">${t.trim()}</span>`) : [])
     ].join('');
 
-    // Remove old action buttons
+
+
+    // Clear all old action buttons first (prevent duplicates)
     document.querySelectorAll('.lb-action-btn').forEach(b => b.remove());
+
+    // Add action buttons in info area (next to tags, like portfolio cards)
+    const lbTags = document.getElementById('lbTags');
+
+    // Add "عرض الملف" button ONLY if current media is a file (pdf/doc/etc), not image/video
+    if (lbWork.media && lbWork.media.length > 0) {
+        const currentItem = lbWork.media[lbIdx];
+        const kind = mediaKind(currentItem);
+        const src = mediaSrc(currentItem);
+        // Only show for files (pdf, doc, etc) - not for images or videos
+        if (kind !== 'image' && kind !== 'video') {
+            const viewBtn = document.createElement('a');
+            viewBtn.className = 'lb-action-btn';
+            viewBtn.href = src;
+            viewBtn.target = '_blank';
+            viewBtn.rel = 'noopener';
+            viewBtn.textContent = '👁 عرض الملف';
+            viewBtn.style.cssText = 'display:inline-block;margin-top:14px;margin-left:10px;background:linear-gradient(135deg,#6c63ff,#8b5cf6);color:white;padding:10px 22px;border-radius:50px;text-decoration:none;font-weight:900;font-size:13px;box-shadow:0 4px 16px rgba(108,99,255,0.4);white-space:nowrap;';
+            lbTags.after(viewBtn);
+        }
+    }
 
     // Add link button if exists
     if (lbWork.video_link) {
@@ -1376,8 +1399,8 @@ function openLB(idx) {
         linkBtn.href = lbWork.video_link;
         linkBtn.target = '_blank';
         linkBtn.textContent = '🔗 فتح الرابط';
-        linkBtn.style.cssText = 'display:inline-block;margin-top:14px;margin-left:10px;background:linear-gradient(135deg,#f59e0b,#ef4444);color:white;padding:14px 32px;border-radius:50px;text-decoration:none;font-weight:900;font-size:15px;box-shadow:0 6px 24px rgba(245,158,11,0.4);white-space:nowrap;';
-        document.getElementById('lbTags').after(linkBtn);
+        linkBtn.style.cssText = 'display:inline-block;margin-top:14px;margin-left:10px;background:linear-gradient(135deg,#f59e0b,#ef4444);color:white;padding:10px 22px;border-radius:50px;text-decoration:none;font-weight:900;font-size:13px;box-shadow:0 4px 16px rgba(245,158,11,0.4);white-space:nowrap;';
+        lbTags.after(linkBtn);
     }
 
     const hasMedia = lbWork.media && lbWork.media.length > 0;
@@ -1454,18 +1477,12 @@ function renderLBMedia() {
         };
         container.insertBefore(img, prev);
     } else {
-        // PDF or any other file - show view + download + link buttons
+        // PDF or any other file - show icon + name only (buttons are in info area below)
         const docDiv = document.createElement('div');
         docDiv.style.cssText = 'width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;background:#020617;padding:20px;text-align:center;';
-        let btns = `<a href="${src}" target="_blank" rel="noopener" style="background:linear-gradient(135deg,#6c63ff,#8b5cf6);color:white;padding:14px 32px;border-radius:50px;text-decoration:none;font-weight:900;font-size:15px;box-shadow:0 8px 32px rgba(108,99,255,0.5);white-space:nowrap;">👁 عرض الملف</a>`;
-        btns += `<a href="${downloadHref(src, name)}" style="background:linear-gradient(135deg,#22c55e,#16a34a);color:white;padding:14px 32px;border-radius:50px;text-decoration:none;font-weight:900;font-size:15px;box-shadow:0 8px 32px rgba(34,197,94,0.4);white-space:nowrap;">⬇️ تحميل الملف</a>`;
-        if (lbWork.video_link) {
-            btns += `<a href="${lbWork.video_link}" target="_blank" rel="noopener" style="background:linear-gradient(135deg,#f59e0b,#ef4444);color:white;padding:14px 32px;border-radius:50px;text-decoration:none;font-weight:900;font-size:15px;box-shadow:0 6px 24px rgba(245,158,11,0.4);white-space:nowrap;">🔗 فتح الرابط</a>`;
-        }
         docDiv.innerHTML = `
             <span style="font-size:64px;">${kind === 'pdf' ? '📄' : '📁'}</span>
-            <span style="color:white;font-size:16px;font-weight:700;word-break:break-all;">${name}</span>
-            <div style="display:flex;gap:14px;flex-wrap:wrap;justify-content:center;">${btns}</div>`;
+            <span style="color:white;font-size:16px;font-weight:700;word-break:break-all;">${name}</span>`;
         container.insertBefore(docDiv, prev);
     }
 
