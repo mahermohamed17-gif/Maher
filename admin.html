@@ -76,6 +76,10 @@
   .badge-photo { background: rgba(74,222,128,0.85); color: #0a0a0f; }
   .badge-motion { background: rgba(251,191,36,0.85); color: #0a0a0f; }
   .badge-brand { background: rgba(99,179,237,0.85); color: #0a0a0f; }
+  .badge-certificate { background: rgba(139,92,246,0.85); color: white; }
+  .badge-cv { background: rgba(236,72,153,0.85); color: white; }
+  .badge-training { background: rgba(34,197,94,0.85); color: #0a0a0f; }
+  .badge-experience { background: rgba(249,115,22,0.85); color: #0a0a0f; }
   .work-info { padding: 16px; }
   .work-info h3 { font-size: 15px; margin-bottom: 6px; }
   .work-info p { color: var(--muted); font-size: 12px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
@@ -154,6 +158,10 @@
               <option value="photo">تصوير فوتوغرافي</option>
               <option value="motion">موشن جرافيك</option>
               <option value="brand">هوية بصرية</option>
+              <option value="certificate">شهادات</option>
+              <option value="cv">CV</option>
+              <option value="training">تدريبات</option>
+              <option value="experience">خبرة</option>
             </select>
           </div>
         </div>
@@ -479,7 +487,7 @@ function updateStats() {
 }
 
 // RENDER WORKS
-const typeLabels = { design: ['تصميم جرافيك','badge-design'], video: ['مونتاج فيديو','badge-video'], photo: ['تصوير','badge-photo'], motion: ['موشن جرافيك','badge-motion'], brand: ['هوية بصرية','badge-brand'] };
+const typeLabels = { design: ['تصميم جرافيك','badge-design'], video: ['مونتاج فيديو','badge-video'], photo: ['تصوير','badge-photo'], motion: ['موشن جرافيك','badge-motion'], brand: ['هوية بصرية','badge-brand'], certificate: ['شهادات','badge-certificate'], cv: ['CV','badge-cv'], training: ['تدريبات','badge-training'], experience: ['خبرة','badge-experience'] };
 
 function renderWorks() {
   const grid = document.getElementById('worksGrid');
